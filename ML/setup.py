@@ -1,5 +1,6 @@
 from setuptools import find_packages,setup
 from typing import List
+import os
 
 HYPEN='-e .'
 def get_packages(file_path:str)->List[str]:
@@ -17,11 +18,14 @@ def get_packages(file_path:str)->List[str]:
 
     return requirements
 
+here = os.path.abspath(os.path.dirname(__file__))
+req_path = os.path.join(here, "requirements.txt")
+
 setup(
     name='ML',
     version='0.0.1',
     author='Utkarsh',
     author_email='utkarshsingh.0902@gmail.com',
     packages=find_packages(),
-    install_requires=get_packages('requirements.txt')
+    install_requires=get_packages(req_path)
 )
