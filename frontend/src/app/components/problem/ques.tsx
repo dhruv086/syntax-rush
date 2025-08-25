@@ -91,9 +91,9 @@ export default function Ques() {
             </div>
             <div className="w-20 text-right text-gray-500 ">{q.percent}%</div>
             <div
-              className={`ml-6 mr-5 py-1 rounded-full text-sm font-semibold capitalize
+              className={`ml-6  py-1 rounded-full text-sm font-semibold capitalize
     ${difficultyColor[q.difficulty as keyof typeof difficultyColor]}
-    ${q.difficulty === "medium" ? "px-3 mr-0" : "px-3"}
+    ${q.difficulty === "medium" ? "px-3  " : "px-3 mr-5"}
   `}
             >
               {q.difficulty}

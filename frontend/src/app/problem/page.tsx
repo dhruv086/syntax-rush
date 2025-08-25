@@ -1,10 +1,10 @@
 import React from "react";
-import NavBar from "../navBar";
-import Prog from "./prog";
-import Cal from "./cal";
-import Chat from "./chat";
-import Ques from "./ques";
-import Todays from "./todays";
+import NavBar from "@/app/components/navBar";
+import Prog from "@/app/components/problem/prog";
+import Cal from "@/app/components/problem/cal";
+import Chat from "@/app/components/problem/chat";
+import Ques from "@/app/components/problem/ques";
+import Todays from "@/app/components/problem/todays";
 
 export default function problem() {
   return (

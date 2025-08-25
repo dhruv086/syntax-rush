@@ -1,15 +1,16 @@
 "use client";
 import React, { useState } from "react";
+import { usePathname } from "next/navigation";
 
 const navLinks = [
-  { name: "home", href: "#home" },
-  { name: "problem", href: "#problem" },
-  { name: "battle", href: "#battle" },
-  { name: "contest", href: "#contest" },
+  { name: "home", href: "/" },
+  { name: "problem", href: "/problem" },
+  { name: "battle", href: "/battle" },
+  { name: "contest", href: "/contest" },
 ];
 
 export default function NavBar() {
-  const [active, setActive] = useState("problem");
+  const pathname = usePathname();
 
   return (
     <nav className="flex items-center justify-center px-7 py-7 bg-[#F0F1F6] h-[8vh]">
@@ -29,11 +30,10 @@ export default function NavBar() {
               href={link.href}
               className={
                 `px-5 py-2 rounded-full font-semibold transition  active:bg-gray-800 active:text-white` +
-                (active === link.name
+                (pathname === link.href
                   ? " bg-[#1F2937] text-white pt-2.5"
                   : " hover:bg-gray-100 pt-3 text-[#484848]")
               }
-              onClick={() => setActive(link.name)}
               style={{ textTransform: "none" }}
             >
               {link.name}
