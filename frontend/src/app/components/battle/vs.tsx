@@ -1,6 +1,5 @@
 "use client";
 import React, { useState } from "react";
-import NavBar from "../navBar";
 
 export default function Vs() {
   const [mode, setMode] = useState<"solo" | "multi">("solo");
@@ -31,35 +30,86 @@ export default function Vs() {
             Multiplayer
           </button>
         </div>
-        <div className="flex flex-1 w-[70vw] items-center justify-between  gap-32">
-          <div className="flex flex-col items-center">
-            <div className="w-56 h-56 rounded-full bg-gray-200" />
-            <span className="mt-6 text-md text-gray-800">player-1</span>
-          </div>
+        {mode === "solo" && (
+          <div>
+            <div className="flex flex-1 w-[70vw] items-center justify-between h-[50vh] gap-32">
+              <div className="flex flex-col items-center">
+                <div className="w-56 h-56 rounded-full bg-gray-200" />
+                <span className="mt-6 text-md text-gray-800">player-1</span>
+              </div>
 
-          <div className="flex flex-col items-center">
-            <span className="text-md text-gray-600 mb-2">v/s</span>
-          </div>
+              <div className="flex flex-col items-center">
+                <span className="text-md text-gray-600 mb-2">v/s</span>
+              </div>
 
-          <div className="flex flex-col items-center">
-            <div className="w-56 h-56 rounded-full bg-gray-200" />
-            <span className="mt-6 text-md text-gray-800">player-2</span>
-          </div>
-        </div>
+              <div className="flex flex-col items-center">
+                <div className="w-56 h-56 rounded-full bg-gray-200" />
+                <span className="mt-6 text-md text-gray-800">player-2</span>
+              </div>
+            </div>
 
-        <div className="flex flex-col items-center ">
-          <select
-            className="mb-3 px-3 py-1 rounded-full bg-gray-100 text-gray-500 text-sm border-none focus:ring-2 focus:ring-gray-200"
-            value={type}
-            onChange={(e) => setType(e.target.value)}
-          >
-            <option value="quick">quick</option>
-            <option value="custom">custom</option>
-          </select>
-          <button className="px-10 py-2 rounded-full bg-[#232b36] text-white font-medium text-lg shadow">
-            Start
-          </button>
-        </div>
+            <div className="flex flex-col items-center ">
+              <select
+                className="mb-3 px-3 py-1 rounded-full bg-gray-100 text-gray-500 text-sm border-none focus:ring-2 focus:ring-gray-200"
+                value={type}
+                onChange={(e) => setType(e.target.value)}
+              >
+                <option className="rounded-full " value="quick">
+                  quick
+                </option>
+                <option className="rounded-full " value="1v1">
+                  1v1 classic
+                </option>
+                <option className="rounded-full " value="friendly">
+                  friendly
+                </option>
+              </select>
+              <button className="px-10 py-2 rounded-full bg-[#232b36] text-white font-medium text-lg shadow">
+                Start
+              </button>
+            </div>
+          </div>
+        )}
+        {mode === "multi" && (
+          <div>
+            <div className="flex flex-1 w-[70vw] items-center justify-between  h-[50vh] gap-32">
+              <div className="flex flex-col items-center">
+                <div className="w-56 h-56 rounded-full bg-gray-200" />
+                <span className="mt-6 text-md text-gray-800">Group-1</span>
+              </div>
+
+              <div className="flex flex-col items-center">
+                <span className="text-md text-gray-600 mb-2">v/s</span>
+              </div>
+
+              <div className="flex flex-col items-center">
+                <div className="w-56 h-56 rounded-full bg-gray-200" />
+                <span className="mt-6 text-md text-gray-800">Group-2</span>
+              </div>
+            </div>
+
+            <div className="flex flex-col items-center ">
+              <select
+                className="mb-3 px-3 py-1 rounded-full bg-gray-100 text-gray-500 text-sm border-none focus:ring-2 focus:ring-gray-200"
+                value={type}
+                onChange={(e) => setType(e.target.value)}
+              >
+                <option className="rounded-full " value="quick">
+                  quick
+                </option>
+                <option className="rounded-full " value="classic">
+                  classic
+                </option>
+                <option className="rounded-full " value="friendly">
+                  friendly
+                </option>
+              </select>
+              <button className="px-10 py-2 rounded-full bg-[#232b36] text-white font-medium text-lg shadow">
+                Start
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
