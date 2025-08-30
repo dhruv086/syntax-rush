@@ -72,14 +72,14 @@ const userSchema = new mongoose.Schema(
       },
       currentLeague:{
         type: String,
-        enum: ["Bronze", "Silver", "Gold", "Platinum", "Diamond", "Master"],
-        default: "Bronze",
+        enum: ["unknown","Bronze", "Silver", "Gold", "Platinum", "Diamond", "Master"],
+        default: "unknown",
         index: true,
       },
       highestLeague:{
         type: String,
-        enum: ["Bronze", "Silver", "Gold", "Platinum", "Diamond", "Master"],
-        default: "Bronze",
+        enum: ["unknown","Bronze", "Silver", "Gold", "Platinum", "Diamond", "Master"],
+        default: "unknown",
         index: true,
       },
       HighestGlobalRank:{
