@@ -101,6 +101,5 @@ const codingProblemSchema = new mongoose.Schema({
 codingProblemSchema.index({ title: 1 });
 codingProblemSchema.index({ difficulty: 1, isActive: 1 });
 codingProblemSchema.index({ "tags.name": 1 });
-codingProblemSchema.index({ visibility: 1, isActive: 1 });
 
 export const CodingProblem = mongoose.model("Problem", codingProblemSchema);

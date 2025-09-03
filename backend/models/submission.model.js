@@ -27,7 +27,7 @@ const submissionSchema = new mongoose.Schema({
   memoryUsed: Number,
   submittedAt:{
     type: Date,
-    Default: Date.now
+    default: Date.now
   },
   testcasesPassed: Number,
   totalTestcases: Number

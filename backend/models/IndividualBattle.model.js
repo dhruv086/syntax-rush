@@ -1,17 +1,19 @@
 import mongoose from "mongoose";
 
 const individualBattleSchema = new mongoose.Schema({
-  battletype: { 
+  battleType: { 
     type: String, 
     enum: ["1v1_classic", "1v1_quick", "1v1_friendly"],
     required: true 
   },
   player1: { 
-    userId: { type: mongoose.Schema.Types.ObjectId,
+    userId: { 
+      type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true 
   },
-    problemId: { type: mongoose.Schema.Types.ObjectId,
+    problemId: { 
+      type: mongoose.Schema.Types.ObjectId,
       ref: "Problem",
       required: true 
   },
