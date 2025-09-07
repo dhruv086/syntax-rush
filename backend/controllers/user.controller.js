@@ -5,6 +5,7 @@ import {ApiResponse} from "../utils/ApiResponse.js";
 import jwt from "jsonwebtoken";
 import {otp} from "../models/otp.model.js";
 import EmailService from "../utils/EmailService.js";
+import {Problem} from "../models/problem.model.js";
 
 const generateAccessandRefreshTokens = async(userId)=>{
   try{
@@ -179,14 +180,13 @@ const Register = AsyncHandler(async(req,res)=>{
     throw new ApiError(400,"password must be at least 8 characters")
   }
 
-  const existingUser = await User.findOne({email})
+  const existingUser = await User.findOne({email});
   if(existingUser){
-    throw new ApiError(400,"user with this email already exist")
+    throw new ApiError(400,"user with this email already exist");
   }
-
-  const usernameExists = await User.findOne({username})
+  const usernameExists = await User.findOne({username});
   if(usernameExists){
-    throw new ApiError(400,"user with this username already exists")
+    throw new ApiError(400,"user with this username already exists");
   }
 
   const emailVerification = await otp.findOne({ 
@@ -255,6 +255,35 @@ const login = AsyncHandler(async(req,res)=>{
     httpOnly:true,
     secure:true
   };
+  if(user.position === "admin"){
+    if(!user.isEmailVerified){
+      throw new ApiError(403,"please verify your email first")
+    }
+    if(user.blocked){
+      throw new ApiError(403,"your account has been blocked. please contact support")
+    }
+    return res
+    .status(200)
+    .cookie("accessToken",accessToken,options)
+    .cookie("refreshToken",refreshToken,options)
+    .json(
+      new ApiResponse(200,{
+        user: {
+          _id: user._id,
+          fullname: user.fullname,
+          email: user.email,
+          username: user.username,
+          position: user.position,
+          isEmailVerified: user.isEmailVerified
+        },
+        accessToken,
+        refreshToken
+      },"admin logged in successfully")
+    )
+  }
+
+
+  
   return res
   .status(200)
   .cookie("accessToken",accessToken,options)
@@ -291,6 +320,7 @@ const Logout = AsyncHandler(async(req,res)=>{
     httpOnly:true,
     secure:true
   };
+
   
   return res
   .status(200)
@@ -300,5 +330,102 @@ const Logout = AsyncHandler(async(req,res)=>{
     new ApiResponse(200,{},"User logged out successfully")
   );
 });
+const createAdmin = AsyncHandler(async(req,res)=>{
+  const {fullname,email,password,username,position}=req.body
+ 
+  if(!fullname){
+    throw new ApiError(400,"fullname is required")
+  }
+  if(!email){
+    throw new ApiError(400,"email is required")
+  }
 
-export {refreshAccessToken,login,Register,Logout,sendEmailVerificationOTP,verifyEmailOTP};
+  if(!username){
+    throw new ApiError(400,"username is required")
+  }
+  if(!password){
+    throw new ApiError(400,"password is required")
+  }
+  if(!position || !["admin"].includes(position)){
+    throw new ApiError(400,"valid position is required")
+  }
+  if(password.length<8){
+    throw new ApiError(400,"password must be at least 8 characters")
+  }
+  const existingUser = await User.findOne({email});
+if(existingUser){
+  throw new ApiError(400,"user with this email already exist");
+}
+  const usernameExists = await User.findOne({username});
+if(usernameExists){
+  throw new ApiError(400,"user with this username already exists");
+}
+  const newUser = await User.create({
+    fullname,
+    email,
+    password,
+    username,
+    position,
+    isEmailVerified: true,
+  })
+  if(!newUser){
+    throw new ApiError(400,"error while creating a new user")
+  }
+  const {accessToken,refreshToken} = await generateAccessandRefreshTokens(newUser._id);
+  
+  const options = {
+    httpOnly:true,
+    secure:true
+  };
+
+  return res
+  .status(201)
+  .cookie("accessToken",accessToken,options)
+  .cookie("refreshToken",refreshToken,options)
+  .json(
+    new ApiResponse(201,{
+      user: {
+        _id: newUser._id,
+        fullname: newUser.fullname,
+        email: newUser.email,
+        username: newUser.username,
+        position: newUser.position,
+        isEmailVerified: newUser.isEmailVerified
+      }
+    },"new admin signedUp successfully")
+  )
+})
+
+
+
+const userProfile = AsyncHandler(async(req,res)=>{  
+  const user=await User.findById(req.user._id).select("-password -refreshToken")
+  if(!user){
+    throw new ApiError(404,"user not found")
+  }
+  return res
+  .status(200)
+  .json(
+    new ApiResponse(200,{user},"user profile fetched successfully")
+  )
+})
+
+const adminProfile = AsyncHandler(async(req,res)=>{
+  const userDoc = await User.findById(req.user._id).select("-password -refreshToken");
+  if(!userDoc){
+    throw new ApiError(404,"user not found");
+  }
+  if(userDoc.position !== "admin"){
+    throw new ApiError(403,"only admin can access this resource");
+  }
+  const problemsCreated = await Problem.countDocuments({createdBy: userDoc._id});
+  const user = userDoc.toObject();
+  user.problemsCreated = problemsCreated;
+  return res
+    .status(200)
+    .json(
+      new ApiResponse(200,{user},"admin profile fetched successfully")
+    );
+})
+
+export {refreshAccessToken,login,Register,Logout,sendEmailVerificationOTP,verifyEmailOTP,userProfile,createAdmin,adminProfile};

@@ -45,6 +45,12 @@ const userSchema = new mongoose.Schema(
     refreshToken:{
       type:String
     },
+    position:{
+      type: String,
+      enum: ["student", "admin"],
+      default: "student",
+      index: true,
+    },
 
     performanceStats: {
       contestPoints:{

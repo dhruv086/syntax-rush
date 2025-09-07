@@ -24,17 +24,10 @@ const codingProblemSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+
   testCases: [{
     input: String,
-    expectedOutput: String,
-    isHidden: {
-      type: Boolean,
-      default: false
-    },
-    points: {
-      type: Number,
-      default: 1
-    }
+    output: String,
   }],
   difficulty: {
     type: String,
@@ -102,4 +95,4 @@ codingProblemSchema.index({ title: 1 });
 codingProblemSchema.index({ difficulty: 1, isActive: 1 });
 codingProblemSchema.index({ "tags.name": 1 });
 
-export const CodingProblem = mongoose.model("Problem", codingProblemSchema);
+export const Problem = mongoose.model("Problem", codingProblemSchema);

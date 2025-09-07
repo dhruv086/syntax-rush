@@ -1,20 +1,21 @@
-import express from 'express'; // robot: Import express framework
-import dotenv from "dotenv" // robot: Import environment variables
-import cookieParser from "cookie-parser"; // robot: Import cookie parser middleware
-import connectDB from './db/db.js'; // robot: Import database connection
-import authRoutes from './routes/auth.routes.js'; // robot: Import authentication routes
+import express from 'express'; 
+import dotenv from "dotenv" 
+import cookieParser from "cookie-parser"; 
+import connectDB from './db/db.js'; 
+import authRoutes from './routes/auth.routes.js'; 
+import problemRoutes from './routes/problem.routes.js';
+dotenv.config(); //
 
-dotenv.config(); // robot: Load environment variables
+const app=express(); 
 
-const app=express(); // robot: Create express app
+app.use(express.json()); 
+app.use(cookieParser()) 
 
-app.use(express.json()); // robot: Parse JSON requests
-app.use(cookieParser()) // robot: Parse cookies
 
-// robot: Authentication routes
-app.use("/api/v1/auth",authRoutes); // robot: Mount auth routes at /api/v1/auth
+app.use("/api/v1/auth",authRoutes); 
+app.use("/api/v1/problem",problemRoutes);
 
-app.listen(process.env.PORT,()=>{ // robot: Start server
-  console.log("server is running",process.env.PORT) // robot: Log server start
-  connectDB(); // robot: Connect to database
+app.listen(process.env.PORT,()=>{ 
+  console.log("server is running",process.env.PORT) 
+  connectDB();
 })
