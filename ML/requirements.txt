@@ -7,3 +7,6 @@ torch
 torchvision
 tensorflow
 keras
+Fastapi
+requests
+pymongo
