@@ -1,6 +1,6 @@
-import mongoose from "mongoose"; 
-import jwt from "jsonwebtoken"; 
-import bcrypt from "bcryptjs"; 
+import mongoose from "mongoose";
+import jwt from "jsonwebtoken";
+import bcrypt from "bcryptjs";
 
 const userSchema = new mongoose.Schema(
   {
@@ -32,20 +32,20 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
-    isActive:{
+    isActive: {
       type: Boolean,
       default: true,
       index: true,
     },
-    blocked:{
+    blocked: {
       type: Boolean,
       default: false,
       index: true,
     },
-    refreshToken:{
-      type:String
+    refreshToken: {
+      type: String
     },
-    position:{
+    position: {
       type: String,
       enum: ["student", "admin"],
       default: "student",
@@ -53,98 +53,98 @@ const userSchema = new mongoose.Schema(
     },
 
     performanceStats: {
-      contestPoints:{
-        type:Number,
+      contestPoints: {
+        type: Number,
         default: 0,
       },
-      contestsParticipated:{
-        type:Number,
+      contestsParticipated: {
+        type: Number,
         default: 0,
       },
-      contestsWon:{
-        type:Number,
+      contestsWon: {
+        type: Number,
         default: 0,
       },
-      battlePoints:{
-        type:Number,
+      battlePoints: {
+        type: Number,
         default: 0,
       },
-      battleParticipated:{
-        type:Number,
+      battleParticipated: {
+        type: Number,
         default: 0,
       },
-      battleWon:{
-        type:Number,
+      battleWon: {
+        type: Number,
         default: 0,
       },
-      battleLost:{
-        type:Number,
+      battleLost: {
+        type: Number,
         default: 0,
       },
-      totalPoints:{
-        type:Number,
+      totalPoints: {
+        type: Number,
         default: 0,
         index: -1,
       },
-      currentLeague:{
+      currentLeague: {
         type: String,
-        enum: ["unknown","Bronze", "Silver", "Gold", "Platinum", "Diamond", "Master"],
+        enum: ["unknown", "Bronze", "Silver", "Gold", "Platinum", "Diamond", "Master"],
         default: "unknown",
         index: true,
       },
-      highestLeague:{
+      highestLeague: {
         type: String,
-        enum: ["unknown","Bronze", "Silver", "Gold", "Platinum", "Diamond", "Master"],
+        enum: ["unknown", "Bronze", "Silver", "Gold", "Platinum", "Diamond", "Master"],
         default: "unknown",
         index: true,
       },
-      HighestGlobalRank:{
+      HighestGlobalRank: {
         type: Number,
         default: Infinity, // Set to infinity to indicate no rank yet
       },
-      HighestCountryRank:{
+      HighestCountryRank: {
         type: Number,
         default: Infinity, // Set to infinity to indicate no rank yet
       },
-      HighestCollegeRank:{
+      HighestCollegeRank: {
         type: Number,
         default: Infinity, // Set to infinity to indicate no rank yet
       },
-      currentcountryRank:{
-        type: Number, 
-        default: Infinity, // Set to infinity to indicate no rank yet
-      },
-      currentGlobalRank:{
-        type: Number, 
-        default: Infinity, // Set to infinity to indicate no rank yet
-      },
-      currentCollegeRank:{
+      currentcountryRank: {
         type: Number,
         default: Infinity, // Set to infinity to indicate no rank yet
       },
-      problemSolved:{
-        type: Number, 
+      currentGlobalRank: {
+        type: Number,
+        default: Infinity, // Set to infinity to indicate no rank yet
+      },
+      currentCollegeRank: {
+        type: Number,
+        default: Infinity, // Set to infinity to indicate no rank yet
+      },
+      problemSolved: {
+        type: Number,
         default: 0,
       },
-      unusualActivity:[
+      unusualActivity: [
         {
-          type: String, 
+          type: String,
         }
       ],
-      overAllWinRate:{
+      overAllWinRate: {
         type: Number,
         default: 0,
       },
-      lastBattleAt:{
+      lastBattleAt: {
         type: Date,
-        default: null,  
+        default: null,
       },
-      lastContestAt:{
+      lastContestAt: {
         type: Date,
-        default: null,  
+        default: null,
       },
     },
-    userFriendship:[{
+    userFriendship: [{
       userId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",
@@ -155,12 +155,24 @@ const userSchema = new mongoose.Schema(
         enum: ["pending", "accepted", "rejected"],
         default: "pending"
       },
+      isInitiator: {
+        type: Boolean,
+        default: false
+      },
       createdAt: {
         type: Date,
         default: Date.now
-      } 
-    }]
-},
+      }
+    }],
+    about: {
+      type: String,
+      default: "Passionate about algorithms and competitive coding. Always learning, always shipping."
+    },
+    skills: {
+      type: [String],
+      default: ["Arrays", "Strings", "Math"]
+    }
+  },
   {
     timestamps: true
   }
@@ -172,43 +184,43 @@ const userSchema = new mongoose.Schema(
 // userSchema.index({ isActive: 1 });//only for active users
 
 
-userSchema.pre("save",async function(next){ 
-  if(!this.isModified("password"))return next(); 
-  this.password=bcrypt.hashSync(this.password,10); 
-  next(); 
-}) 
+userSchema.pre("save", async function (next) {
+  if (!this.isModified("password")) return next();
+  this.password = bcrypt.hashSync(this.password, 10);
+  next();
+})
 
-userSchema.methods.isPasswordCorrect=async function(password){ 
-  return await bcrypt.compare(password,this.password); 
-} 
-
-userSchema.methods.generateAccessToken=function(){ 
-  return jwt.sign( 
-    { 
-      _id:this._id, 
-      name:this.name,
-      fullname:this.fullname,
-      username:this.username,
-      email:this.email 
-    }, 
-    process.env.ACCESS_TOKEN_SECRET, 
-    { 
-      expiresIn:process.env.ACCESS_TOKEN_EXPIRES 
-    } 
-  ) 
+userSchema.methods.isPasswordCorrect = async function (password) {
+  return await bcrypt.compare(password, this.password);
 }
 
-userSchema.methods.generateRefreshToken=function(){ 
-  return jwt.sign( 
-    { 
-      _id:this._id, 
-    }, 
-    process.env.REFRESH_TOKEN_SECRET, 
-    { 
-      expiresIn:process.env.REFRESH_TOKEN_EXPIRES 
-   } 
-  ) 
-} 
+userSchema.methods.generateAccessToken = function () {
+  return jwt.sign(
+    {
+      _id: this._id,
+      name: this.name,
+      fullname: this.fullname,
+      username: this.username,
+      email: this.email
+    },
+    process.env.ACCESS_TOKEN_SECRET,
+    {
+      expiresIn: process.env.ACCESS_TOKEN_EXPIRES
+    }
+  )
+}
+
+userSchema.methods.generateRefreshToken = function () {
+  return jwt.sign(
+    {
+      _id: this._id,
+    },
+    process.env.REFRESH_TOKEN_SECRET,
+    {
+      expiresIn: process.env.REFRESH_TOKEN_EXPIRES
+    }
+  )
+}
 
 
-export const User=  mongoose.model("User", userSchema); 
+export const User = mongoose.model("User", userSchema); 

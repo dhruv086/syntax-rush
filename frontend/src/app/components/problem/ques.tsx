@@ -1,46 +1,31 @@
 "use client";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import Link from "next/link";
-const questions = [
-  { id: 1, title: "Add two numbers", percent: 63.2, difficulty: "easy" },
-  { id: 2, title: "Three sum", percent: 69.2, difficulty: "hard" },
-  { id: 3, title: "ZigZag conversion", percent: 53.2, difficulty: "medium" },
-  { id: 4, title: "Add two numbers", percent: 63.2, difficulty: "easy" },
-  { id: 5, title: "Add two numbers", percent: 63.2, difficulty: "easy" },
-  { id: 6, title: "Add two numbers", percent: 63.2, difficulty: "easy" },
-  { id: 7, title: "Add two numbers", percent: 63.2, difficulty: "easy" },
-  { id: 8, title: "Binary search", percent: 71.5, difficulty: "medium" },
-  { id: 9, title: "Two sum", percent: 81.2, difficulty: "easy" },
-  { id: 10, title: "LRU Cache", percent: 42.3, difficulty: "hard" },
-  { id: 11, title: "Add two numbers", percent: 63.2, difficulty: "easy" },
-  { id: 12, title: "Three sum", percent: 69.2, difficulty: "hard" },
-  { id: 13, title: "ZigZag conversion", percent: 53.2, difficulty: "medium" },
-  { id: 14, title: "Add two numbers", percent: 63.2, difficulty: "easy" },
-  { id: 15, title: "Add two numbers", percent: 63.2, difficulty: "easy" },
-  { id: 16, title: "Add two numbers", percent: 63.2, difficulty: "easy" },
-  { id: 17, title: "Add two numbers", percent: 63.2, difficulty: "easy" },
-  { id: 18, title: "Binary search", percent: 71.5, difficulty: "medium" },
-  { id: 19, title: "Two sum", percent: 81.2, difficulty: "easy" },
-  { id: 20, title: "LRU Cache", percent: 42.3, difficulty: "hard" },
-  { id: 21, title: "Add two numbers", percent: 63.2, difficulty: "easy" },
-  { id: 22, title: "Three sum", percent: 69.2, difficulty: "hard" },
-  { id: 23, title: "ZigZag conversion", percent: 53.2, difficulty: "medium" },
-  { id: 24, title: "Add two numbers", percent: 63.2, difficulty: "easy" },
-  { id: 25, title: "Add two numbers", percent: 63.2, difficulty: "easy" },
-  { id: 26, title: "Add two numbers", percent: 63.2, difficulty: "easy" },
-  { id: 27, title: "Add two numbers", percent: 63.2, difficulty: "easy" },
-  { id: 28, title: "Binary search", percent: 71.5, difficulty: "medium" },
-  { id: 29, title: "Two sum", percent: 81.2, difficulty: "easy" },
-  { id: 30, title: "LRU Cache", percent: 42.3, difficulty: "hard" },
-];
+import api from "@/lib/api";
 
 const difficultyColor = {
-  easy: "text-green-600 bg-green-100",
-  medium: "text-yellow-600 bg-yellow-100",
-  hard: "text-red-600 bg-red-100",
+  Easy: "text-green-600 bg-green-100",
+  Medium: "text-yellow-600 bg-yellow-100",
+  Hard: "text-red-600 bg-red-100",
 };
 
 export default function Ques() {
+  const [questions, setQuestions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchQuestions = async () => {
+      try {
+        const response = await api.get("/problem/all-problems");
+        setQuestions(response.data.data.problems);
+      } catch (error) {
+        console.error("Failed to fetch questions:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchQuestions();
+  }, []);
   return (
     <div className="h-full px-4 sm:px-8  mb-10">
       <div className="flex items-center mb-4 gap-2">
@@ -93,29 +78,34 @@ export default function Ques() {
 
       {/* Questions list */}
       <div className="flex flex-col gap-3 rounded-2xl overflow-y-auto h-[70vh] sm:h-[80vh]">
-        {questions.map((q, idx) => (
-          <Link href={`/problem/${q.id}`} key={q.id}>
-
-          <div
-            key={q.id + idx}
-            className="flex flex-col sm:flex-row sm:justify-between sm:items-center bg-white px-4 sm:px-6 py-3 rounded-2xl shadow-sm"
-            >
-            <div className="flex-1 text-gray-800 font-medium text-sm sm:text-base">
-              {idx + 1}. {q.title}
-            </div>
-            <div className="flex items-center justify-between sm:justify-end gap-3 mt-2 sm:mt-0">
-              <div className="text-gray-500 text-sm">{q.percent}%</div>
+        {loading ? (
+          <div className="text-center py-10 text-gray-500">Loading questions...</div>
+        ) : questions.length === 0 ? (
+          <div className="text-center py-10 text-gray-500">No questions found.</div>
+        ) : (
+          questions.map((q, idx) => (
+            <Link href={`/problem/${q._id}`} key={q._id}>
               <div
-                className={`px-3 py-1 rounded-full text-xs sm:text-sm font-semibold capitalize ${
-                  difficultyColor[q.difficulty as keyof typeof difficultyColor]
-                }`}
-                >
-                {q.difficulty}
+                className="flex flex-col sm:flex-row sm:justify-between sm:items-center bg-white px-4 sm:px-6 py-3 rounded-2xl shadow-sm hover:shadow-md transition-shadow"
+              >
+                <div className="flex-1 text-gray-800 font-medium text-sm sm:text-base">
+                  {idx + 1}. {q.title}
+                </div>
+                <div className="flex items-center justify-between sm:justify-end gap-3 mt-2 sm:mt-0">
+                  <div className="text-gray-500 text-sm">
+                    {q.stats?.successRate || 0}%
+                  </div>
+                  <div
+                    className={`px-3 py-1 rounded-full text-xs sm:text-sm font-semibold capitalize ${difficultyColor[q.difficulty as keyof typeof difficultyColor]
+                      }`}
+                  >
+                    {q.difficulty}
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
-                </Link>
-        ))}
+            </Link>
+          ))
+        )}
       </div>
     </div>
   );

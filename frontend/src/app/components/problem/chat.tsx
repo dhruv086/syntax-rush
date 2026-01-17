@@ -1,41 +1,49 @@
 "use client";
 import React, { useRef, useState, useEffect } from "react";
+import api from "@/lib/api";
 
 type Message = {
-  user: "me" | "other";
-  text: string;
+  _id?: string;
+  userId: string;
+  username: string;
+  message: string;
+  createdAt?: string;
 };
 
-const initialMessages: Message[] = [
-  { user: "other", text: "Hello ji ki haal chaal!" },
-  { user: "other", text: "balle balle" },
-  {
-    user: "me",
-    text: "balle balle ji balle balle  sab badhiya ",
-  },
-  { user: "other", text: "theek ji theek" },
-];
-
 export default function Chat() {
-  const [messages, setMessages] = useState<Message[]>(initialMessages);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
-  function handleSend(e: React.FormEvent) {
+  const fetchMessages = async () => {
+    try {
+      const response = await api.get("/chat/global");
+      setMessages(response.data.data);
+    } catch (error) {
+      console.error("Failed to fetch chat messages:", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchMessages();
+    const interval = setInterval(fetchMessages, 3000); // Poll every 3s
+    return () => clearInterval(interval);
+  }, []);
+
+  async function handleSend(e: React.FormEvent) {
     e.preventDefault();
     if (!input.trim()) return;
-    setMessages((msgs) => [...msgs, { user: "me", text: input }]);
+
+    const tempInput = input;
     setInput("");
 
-    setTimeout(() => {
-      setMessages((msgs) => [
-        ...msgs,
-        {
-          user: "other",
-          text: "chal chal chal chal ",
-        },
-      ]);
-    }, 900);
+    try {
+      await api.post("/chat/global", { message: tempInput });
+      fetchMessages();
+    } catch (error) {
+      console.error("Failed to send message:", error);
+      alert("Failed to send message. Are you logged in?");
+    }
   }
 
   useEffect(() => {
@@ -55,45 +63,15 @@ export default function Chat() {
         ref={chatContainerRef}
       >
         {messages.map((msg, idx) => {
-          const prev = messages[idx - 1];
-          const showAvatar =
-            msg.user === "other" && (idx === 0 || prev.user !== "other");
-
-          if (msg.user === "me") {
-            return (
-              <div
-                key={idx}
-                className="flex flex-row-reverse items-start gap-3"
-              >
-                <div className="flex flex-col gap-1 items-end w-full">
-                  <div className="bg-blue-100 text-blue-800 px-4 py-2 m-2 rounded-2xl max-w-xs break-words">
-                    {msg.text}
-                  </div>
-                </div>
+          return (
+            <div key={msg._id || idx} className="flex flex-col items-start gap-1">
+              <span className="text-[10px] text-gray-400 ml-2">{msg.username}</span>
+              <div className="bg-gray-100 text-gray-700 px-4 py-2 rounded-2xl max-w-[80%] break-words shadow-sm">
+                {msg.message}
               </div>
-            );
-          } else {
-            return (
-              <div key={idx} className="flex items-start gap-3">
-                <div className="flex flex-col items-center">
-                  {showAvatar ? (
-                    <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center text-xs font-bold text-gray-500">
-                      A
-                    </div>
-                  ) : (
-                    <div className="w-6 h-6" />
-                  )}
-                </div>
-                <div className="flex flex-col gap-1">
-                  <div className="bg-gray-100 text-gray-700 px-4 py-2 rounded-2xl max-w-xs break-words">
-                    {msg.text}
-                  </div>
-                </div>
-              </div>
-            );
-          }
+            </div>
+          );
         })}
-        {/* <div ref={messagesEndRef} /> */}
       </div>
 
       <form

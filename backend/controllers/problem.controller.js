@@ -14,27 +14,27 @@ const createProblem = AsyncHandler(async (req, res) => {
   }
 
   // Required field validation
- if (!title) {
-  throw new ApiError(400, "Title is required");
-}
-if (!description) {
-  throw new ApiError(400, "Description is required");
-}
-if (!difficulty) {
-  throw new ApiError(400, "Difficulty is required");
-}
-if (!tags) {
-  throw new ApiError(400, "Tags are required");
-}
-if (!testcases) {
-  throw new ApiError(400, "Testcases are required");
-}
-if (!inputFormat) {
-  throw new ApiError(400, "Input format is required");
-}
-if (!outputFormat) {
-  throw new ApiError(400, "Output format is required");
-}
+  if (!title) {
+    throw new ApiError(400, "Title is required");
+  }
+  if (!description) {
+    throw new ApiError(400, "Description is required");
+  }
+  if (!difficulty) {
+    throw new ApiError(400, "Difficulty is required");
+  }
+  if (!tags) {
+    throw new ApiError(400, "Tags are required");
+  }
+  if (!testcases) {
+    throw new ApiError(400, "Testcases are required");
+  }
+  if (!inputFormat) {
+    throw new ApiError(400, "Input format is required");
+  }
+  if (!outputFormat) {
+    throw new ApiError(400, "Output format is required");
+  }
 
   if (!Array.isArray(tags) || tags.length === 0) {
     throw new ApiError(400, "At least one tag is required");
@@ -81,7 +81,7 @@ const getAllProblems = AsyncHandler(async (req, res) => {
   }
   const problems = await Problem.find(query)
     .skip((page - 1) * limit)
-    .limit(parseInt(limit)) 
+    .limit(parseInt(limit))
     .sort({ createdAt: -1 });
   const totalProblems = await Problem.countDocuments(query);
   return res
@@ -101,12 +101,12 @@ const getAllProblems = AsyncHandler(async (req, res) => {
 }
 );
 
-const getAdminProblems = AsyncHandler(async(req,res)=>{
+const getAdminProblems = AsyncHandler(async (req, res) => {
   const { page = 1, limit = 10, difficulty, tags } = req.query;
-  
+
   const query = { createdBy: req.user._id };
-  if(difficulty) query.difficulty = difficulty;
-  if(tags) query.tags = { $in: tags.split(",") };
+  if (difficulty) query.difficulty = difficulty;
+  if (tags) query.tags = { $in: tags.split(",") };
 
   const problems = await Problem.find(query)
     .skip((page - 1) * limit)
@@ -125,4 +125,15 @@ const getAdminProblems = AsyncHandler(async(req,res)=>{
   )
 })
 
-export { createProblem, getAllProblems ,getAdminProblems};
+const getProblemById = AsyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const problem = await Problem.findById(id);
+  if (!problem) {
+    throw new ApiError(404, "Problem not found");
+  }
+  return res.status(200).json(
+    new ApiResponse(200, { problem }, "Problem fetched successfully")
+  );
+});
+
+export { createProblem, getAllProblems, getAdminProblems, getProblemById };

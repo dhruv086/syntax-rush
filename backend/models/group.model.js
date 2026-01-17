@@ -1,19 +1,25 @@
 import mongoose from "mongoose";
 
 const groupSchema = new mongoose.Schema({
-  name: { 
-    type: String, 
-    required: true, 
-    trim: true 
+  name: {
+    type: String,
+    required: true,
+    trim: true
+  },
+  username: {
+    type: String,
+    unique: true,
+    sparse: true, // Allow nulls while group creation might not have it yet, or make it required
+    trim: true
   },
   description: String,
-  owner: { 
-    type: mongoose.Schema.Types.ObjectId, 
+  owner: {
+    type: mongoose.Schema.Types.ObjectId,
     ref: "User",
     required: true
   },
-  admins: [{ 
-    type: mongoose.Schema.Types.ObjectId, 
+  admins: [{
+    type: mongoose.Schema.Types.ObjectId,
     ref: "User"
   }],
   members: [{
@@ -34,6 +40,16 @@ const groupSchema = new mongoose.Schema({
     isActive: {
       type: Boolean,
       default: true
+    }
+  }],
+  joinRequests: [{
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User"
+    },
+    requestedAt: {
+      type: Date,
+      default: Date.now
     }
   }],
   isPublic: {
@@ -59,52 +75,52 @@ const groupSchema = new mongoose.Schema({
     },
     battlesLost: {
       type: Number,
-      default: 0  
+      default: 0
     },
     totalPoints: {
       type: Number,
       default: 0
     },
-    highestPoints:{
+    highestPoints: {
       type: Number,
       default: 0
     },
-    HighestGlobalRank:{
-        type: Number,
-        default: Infinity, // Set to infinity to indicate no rank yet
-      },
-      HighestCountryRank:{
-        type: Number,
-        default: Infinity, // Set to infinity to indicate no rank yet
-      },
-      HighestCollegeRank:{
-        type: Number,
-        default: Infinity, // Set to infinity to indicate no rank yet
-      },
-      currentcountryRank:{
-        type: Number, 
-        default: Infinity, // Set to infinity to indicate no rank yet
-      },
-      currentGlobalRank:{
-        type: Number, 
-        default: Infinity, // Set to infinity to indicate no rank yet
-      },
-      currentCollegeRank:{
-        type: Number,
-        default: Infinity, // Set to infinity to indicate no rank yet
-      },
-      lastBattleAt:{
-        type: Date,
-        default: null,  
-      },
+    HighestGlobalRank: {
+      type: Number,
+      default: Infinity, // Set to infinity to indicate no rank yet
     },
-    
-  },{ timestamps: true});
-  
-  
-  groupSchema.index({ name: 1 }); // Search groups by name
-  groupSchema.index({ "members.userId": 1 }); // User's groups
-  groupSchema.index({ isPublic: 1, isActive: 1 }); // Public active groups
-  groupSchema.index({ "stats.totalPoints": -1 }); // Group leaderboards
+    HighestCountryRank: {
+      type: Number,
+      default: Infinity, // Set to infinity to indicate no rank yet
+    },
+    HighestCollegeRank: {
+      type: Number,
+      default: Infinity, // Set to infinity to indicate no rank yet
+    },
+    currentcountryRank: {
+      type: Number,
+      default: Infinity, // Set to infinity to indicate no rank yet
+    },
+    currentGlobalRank: {
+      type: Number,
+      default: Infinity, // Set to infinity to indicate no rank yet
+    },
+    currentCollegeRank: {
+      type: Number,
+      default: Infinity, // Set to infinity to indicate no rank yet
+    },
+    lastBattleAt: {
+      type: Date,
+      default: null,
+    },
+  },
+
+}, { timestamps: true });
+
+
+groupSchema.index({ name: 1 }); // Search groups by name
+groupSchema.index({ "members.userId": 1 }); // User's groups
+groupSchema.index({ isPublic: 1, isActive: 1 }); // Public active groups
+groupSchema.index({ "stats.totalPoints": -1 }); // Group leaderboards
 
 export const Group = mongoose.model("Group", groupSchema);

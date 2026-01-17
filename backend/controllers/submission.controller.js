@@ -83,8 +83,8 @@ const submitSolution = AsyncHandler(async (req, res) => {
     totalPassed === testCases.length
       ? "accepted"
       : totalPassed > 0
-      ? "wrong_answer"
-      : mapJudgeStatus(results[0]?.status?.id);
+        ? "wrong_answer"
+        : mapJudgeStatus(results[0]?.status?.id);
 
   const submissionDoc = await Submission.create({
     user: req.user._id,
@@ -122,7 +122,18 @@ const submitSolution = AsyncHandler(async (req, res) => {
         ...(status === "accepted" ? { "stats.successfulSubmissions": 1 } : {}),
       },
     });
-  } catch (_) {}
+
+    // Award Points & Update User Stats
+    if (status === "accepted") {
+      const { User } = await import("../models/user.model.js");
+      await User.findByIdAndUpdate(req.user._id, {
+        $inc: {
+          "performanceStats.totalPoints": 20,
+          "performanceStats.problemSolved": 1
+        }
+      });
+    }
+  } catch (_) { }
 
   return res
     .status(201)

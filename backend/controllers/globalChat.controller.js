@@ -14,13 +14,18 @@ export const getMessages = AsyncHandler(async (req, res) => {
 });
 
 export const sendMessage = AsyncHandler(async (req, res) => {
-  const { userId, username, message } = req.body;
+  const { message } = req.body;
+  const { _id: userId, username } = req.user;
 
-  if (!message || message.length > 200) {
-    throw new ApiError(400, "Invalid message");
+  if (!message || message.length > 500) {
+    throw new ApiError(400, "Invalid message (limit 500 chars)");
   }
 
-  const newMessage = await GlobalChat.create({ userId, username, message });
+  const newMessage = await GlobalChat.create({
+    userId,
+    username,
+    message
+  });
 
   // Keep only latest 1000 messages
   const totalMessages = await GlobalChat.countDocuments();

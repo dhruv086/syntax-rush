@@ -142,6 +142,37 @@ const submitToBattle = AsyncHandler(async (req, res) => {
   battle.winner = winner ?? battle.winner;
   await battle.save();
 
+  // Award Points & Update User Stats when battle completes
+  if (battle.status === "completed") {
+    const { User } = await import("../models/user.model.js");
+
+    // Player 1
+    const p1Bonus = String(battle.winner) === String(battle.player1.userId) ? 50 : 0;
+    await User.findByIdAndUpdate(battle.player1.userId, {
+      $inc: {
+        "performanceStats.totalPoints": 10 + p1Bonus,
+        "performanceStats.battlePoints": 10 + p1Bonus,
+        "performanceStats.battleParticipated": 1,
+        "performanceStats.battleWon": p1Bonus ? 1 : 0,
+        "performanceStats.battleLost": p1Bonus ? 0 : 1
+      },
+      $set: { "performanceStats.lastBattleAt": new Date() }
+    });
+
+    // Player 2
+    const p2Bonus = String(battle.winner) === String(battle.player2.userId) ? 50 : 0;
+    await User.findByIdAndUpdate(battle.player2.userId, {
+      $inc: {
+        "performanceStats.totalPoints": 10 + p2Bonus,
+        "performanceStats.battlePoints": 10 + p2Bonus,
+        "performanceStats.battleParticipated": 1,
+        "performanceStats.battleWon": p2Bonus ? 1 : 0,
+        "performanceStats.battleLost": p2Bonus ? 0 : 1
+      },
+      $set: { "performanceStats.lastBattleAt": new Date() }
+    });
+  }
+
   return res.status(200).json(new ApiResponse(200, { battle, submission: sub }, "battle submission processed"));
 });
 

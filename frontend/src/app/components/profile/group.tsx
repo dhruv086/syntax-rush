@@ -1,66 +1,278 @@
-import React, { useMemo, useState } from "react";
-
-type Member = { name: string; role: "Leader" | "Member" };
+"use client";
+import React, { useMemo, useState, useEffect } from "react";
+import api from "@/lib/api";
+import { Search, UserPlus, Users, MessageCircle, Swords, Check, X, Shield, Plus, LogOut, ArrowUpCircle, Edit3 } from "lucide-react";
 
 export default function Group() {
-  const [hasGroup, setHasGroup] = useState(true);
-  const [isLeader, setIsLeader] = useState(true);
+  const [groups, setGroups] = useState<any[]>([]);
+  const [activeGroup, setActiveGroup] = useState<any>(null);
+  const [requests, setRequests] = useState<any[]>([]);
+  const [suggestions, setSuggestions] = useState<any[]>([]);
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [friends, setFriends] = useState<any[]>([]);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [showCreate, setShowCreate] = useState(false);
+  const [isEditingHandle, setIsEditingHandle] = useState(false);
+  const [tempHandle, setTempHandle] = useState("");
+  const [newGroup, setNewGroup] = useState({ name: "", username: "", isPublic: true });
 
-  // Editable group info (leader only)
-  const [groupName, setGroupName] = useState("Alpha Coders");
-  const [groupBio, setGroupBio] = useState("We code fast, learn faster, and help each other level up.");
-  const [iconEmoji, setIconEmoji] = useState("👥");
-  const [isEditingName, setIsEditingName] = useState(false);
-  const [isEditingIcon, setIsEditingIcon] = useState(false);
+  const fetchMyGroups = async () => {
+    try {
+      const res = await api.get("/group/my-groups");
+      const fetchedGroups = res.data.data.groups;
+      setGroups(fetchedGroups);
+      if (fetchedGroups.length > 0) {
+        if (!activeGroup || !fetchedGroups.find((g: any) => g._id === activeGroup._id)) {
+          setActiveGroup(fetchedGroups[0]);
+        }
+      }
+      fetchSuggestions(); // Always fetch fresh suggestions
+    } catch (err) {
+      console.error("Failed to fetch groups");
+    }
+  };
 
-  const members: Member[] = useMemo(
-    () => [
-      { name: "player-1", role: "Leader" },
-      { name: "player-2", role: "Member" },
-      { name: "player-3", role: "Member" },
-      { name: "player-4", role: "Member" },
-      { name: "player-5", role: "Member" },
-    ],
-    []
-  );
+  const fetchSuggestions = async () => {
+    try {
+      const res = await api.get("/group/suggestions");
+      setSuggestions(res.data.data.suggestions);
+    } catch (err) {
+      console.error("Failed to fetch suggestions");
+    }
+  };
 
-  const pendingRequests = ["devfox", "coderbee", "nightowl"]; // leader view only
-  const achievements = ["🏆 Weekend Champions", "⚡ Fastest Solve", "🤝 Mentor Month", "📈 10-Week Streak"];
-  const [announcements, setAnnouncements] = useState<string[]>([
-    "Team battle scheduled for Friday 7pm.",
-    "Welcome new member: @devfox.",
-    "Remember to complete daily challenges.",
-  ]);
-  const [isEditingAnnouncements, setIsEditingAnnouncements] = useState(false);
-  const [announcementsDraft, setAnnouncementsDraft] = useState<string>(announcements.join("\n"));
+  const fetchFriends = async () => {
+    try {
+      const res = await api.get("/social/friends");
+      setFriends(res.data.data.friends);
+    } catch (err) {
+      console.error("Failed to fetch friends");
+    }
+  };
 
-  if (!hasGroup) {
+  const fetchProfile = async () => {
+    try {
+      const res = await api.get("/auth/profile");
+      setCurrentUser(res.data.data.user);
+    } catch (err) {
+      console.error("Failed to fetch profile");
+    }
+  };
+
+  useEffect(() => {
+    const init = async () => {
+      setLoading(true);
+      await Promise.all([fetchMyGroups(), fetchFriends(), fetchProfile()]);
+      setLoading(false);
+    };
+    init();
+  }, []);
+
+  useEffect(() => {
+    if (activeGroup) {
+      const fetchRequests = async () => {
+        try {
+          const res = await api.get(`/group/${activeGroup._id}/requests`);
+          setRequests(res.data.data.requests);
+        } catch (err) { /* Not owner likely */ }
+      };
+      fetchRequests();
+      setTempHandle(activeGroup.username || "");
+    }
+  }, [activeGroup]);
+
+  const handleSearch = async (q: string) => {
+    if (q.length < 2) {
+      setSearchResults([]);
+      return;
+    }
+    try {
+      const res = await api.get(`/group/search?query=${q}`);
+      setSearchResults(res.data.data.groups);
+    } catch (err) { console.error(err); }
+  };
+
+  const handleJoin = async (id: string) => {
+    try {
+      await api.post(`/group/${id}/join`);
+      alert("Request sent or joined successfully!");
+      fetchMyGroups();
+    } catch (err: any) {
+      alert(err.response?.data?.message || "Failed to join");
+    }
+  };
+
+  const handleLeave = async () => {
+    if (!activeGroup) return;
+    if (!confirm("Are you sure you want to leave this group?")) return;
+    try {
+      await api.post(`/group/${activeGroup._id}/leave`);
+      alert("Left group successfully");
+      const remaining = groups.filter(g => g._id !== activeGroup._id);
+      setGroups(remaining);
+      setActiveGroup(remaining.length > 0 ? remaining[0] : null);
+      fetchMyGroups();
+    } catch (err: any) {
+      alert(err.response?.data?.message || "Failed to leave");
+    }
+  };
+
+  const handlePromote = async (userId: string) => {
+    try {
+      await api.post(`/group/${activeGroup._id}/promote`, { userId });
+      alert("Member promoted to co-admin!");
+      const res = await api.get(`/group/${activeGroup._id}`);
+      setActiveGroup(res.data.data.group);
+    } catch (err: any) {
+      alert(err.response?.data?.message || "Promotion failed");
+    }
+  };
+
+  const handleUpdateHandle = async () => {
+    if (!activeGroup) return;
+    try {
+      await api.patch(`/group/${activeGroup._id}`, { username: tempHandle });
+      alert("Group handle updated!");
+      setIsEditingHandle(false);
+      const res = await api.get(`/group/${activeGroup._id}`);
+      setActiveGroup(res.data.data.group);
+      fetchMyGroups(); // Update handle in sidebar too
+    } catch (err: any) {
+      alert(err.response?.data?.message || "Failed to update handle. It might be taken.");
+    }
+  };
+
+  const sendFriendRequest = async (friendId: string) => {
+    try {
+      await api.post("/social/request", { friendId });
+      alert("Friend request sent!");
+    } catch (err: any) {
+      alert(err.response?.data?.message || "Already friends or request pending");
+    }
+  };
+
+  const handleRequest = async (userId: string, action: 'accept' | 'reject') => {
+    try {
+      await api.post(`/group/${activeGroup._id}/requests/handle`, { userId, action });
+      setRequests(requests.filter(r => r.userId._id !== userId));
+      const res = await api.get(`/group/${activeGroup._id}`);
+      setActiveGroup(res.data.data.group);
+    } catch (err) { alert("Action failed"); }
+  };
+
+  if (loading) return <div className="p-10 text-center text-gray-500">Loading your squads...</div>;
+
+  if (groups.length === 0 && !showCreate) {
     return (
-      <div className="min-h-screen bg-[#F7F8FD] p-10">
-        <div className="max-w-[1100px] mx-auto grid grid-cols-4 grid-rows-9 gap-4 min-h-[120vh]">
-          {/* Discover / Join or Create */}
-          <div className="col-span-4 row-span-3 bg-white rounded-xl shadow p-6">
-            <h2 className="text-lg font-semibold text-gray-800 mb-2">Join or Create a Group</h2>
-            <p className="text-sm text-gray-500 mb-4">Find your squad or start one. Collaborate, compete, and grow together.</p>
-            <div className="flex gap-3 mb-6">
-              <input placeholder="Search groups" className="flex-1 px-4 py-2 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-300" />
-              <button className="px-4 py-2 rounded-lg bg-[#232b36] text-white">Search</button>
+      <div className="min-h-screen bg-[#F7F8FD] p-10 flex flex-col items-center justify-center">
+        <div className="max-w-2xl w-full text-center">
+          <div className="bg-white p-10 rounded-3xl shadow-xl mb-10">
+            <div className="w-20 h-20 bg-indigo-50 rounded-full flex items-center justify-center mx-auto mb-6">
+              <Users className="text-indigo-600" size={32} />
             </div>
-            <div className="flex flex-wrap gap-3">
-              {["Alpha Coders", "Bug Smashers", "Runtime Terrors"].map((g, i) => (
-                <div key={i} className="rounded-xl border border-gray-200 p-4 w-64">
-                  <div className="text-sm font-semibold text-gray-800">{g}</div>
-                  <div className="text-xs text-gray-500 mb-3">5 members • active</div>
-                  <div className="flex gap-2">
-                    <button className="px-3 py-1 rounded-md bg-gray-100 text-gray-700 text-sm">Request</button>
-                    <button className="px-3 py-1 rounded-md bg-white border text-gray-700 text-sm">View</button>
+            <h2 className="text-2xl font-bold mb-2">No Groups Yet</h2>
+            <p className="text-gray-500 mb-8">Join an existing squad or create your own to dominate the leaderboards.</p>
+            <div className="space-y-3 max-w-sm mx-auto">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+                <input
+                  onChange={(e) => handleSearch(e.target.value)}
+                  placeholder="Find a group..."
+                  className="w-full pl-10 pr-4 py-3 rounded-xl border border-gray-200"
+                />
+                {searchResults.length > 0 && (
+                  <div className="absolute top-full mt-2 w-full bg-white shadow-2xl rounded-xl z-50 text-left border overflow-hidden">
+                    {searchResults.map(g => (
+                      <div key={g._id} className="p-3 flex items-center justify-between border-b last:border-0 hover:bg-gray-50 cursor-pointer">
+                        <div className="flex-1">
+                          <p className="font-semibold text-sm">{g.name}</p>
+                          <p className="text-xs text-gray-400">{g.members?.length} members</p>
+                        </div>
+                        <button onClick={() => handleJoin(g._id)} className="text-xs font-bold text-indigo-600 px-3 py-1 bg-indigo-50 rounded-md hover:bg-indigo-100 transition-colors">Join</button>
+                      </div>
+                    ))}
                   </div>
-                </div>
-              ))}
+                )}
+              </div>
+              <button onClick={() => setShowCreate(true)} className="w-full py-3 bg-[#232b36] text-white rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-[#1a2029] transition-colors">
+                <Plus size={18} /> Create New Group
+              </button>
             </div>
-            <div className="mt-6 flex gap-3">
-              <button className="px-4 py-2 rounded-lg bg-[#232b36] text-white" onClick={() => setHasGroup(true)}>Create Group</button>
-              <button className="px-4 py-2 rounded-lg bg-white border">Learn More</button>
+          </div>
+
+          {suggestions.length > 0 && (
+            <div className="text-left">
+              <h3 className="text-xs font-black text-gray-400 uppercase tracking-widest mb-6 px-4">Suggested Squads</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {suggestions.map(s => (
+                  <div key={s._id} className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm hover:shadow-md transition-all flex items-center justify-between">
+                    <div>
+                      <h4 className="font-bold text-gray-800">{s.name}</h4>
+                      <p className="text-xs text-gray-400">@{s.username || 'squad'} • {s.members?.length} Members</p>
+                    </div>
+                    <button onClick={() => handleJoin(s._id)} className="px-4 py-2 bg-indigo-50 text-indigo-600 rounded-xl text-xs font-black uppercase tracking-tighter hover:bg-indigo-100 transition-colors">Join</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (showCreate) {
+    return (
+      <div className="min-h-screen p-10 flex items-center justify-center bg-[#F7F8FD]">
+        <div className="bg-white p-10 rounded-3xl shadow-xl w-full max-w-md">
+          <h2 className="text-2xl font-bold mb-6">Start a Squad</h2>
+          <div className="space-y-4">
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-gray-400 uppercase">Group Name</label>
+              <input
+                placeholder="e.g. Code Warriors"
+                className="w-full p-4 rounded-xl border bg-gray-50 outline-none focus:ring-2 focus:ring-indigo-500"
+                value={newGroup.name}
+                onChange={e => setNewGroup({ ...newGroup, name: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-bold text-gray-400 uppercase">Handle (unique)</label>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400">@</span>
+                <input
+                  placeholder="codewarriors"
+                  className="w-full p-4 pl-9 rounded-xl border bg-gray-50 outline-none focus:ring-2 focus:ring-indigo-500"
+                  value={newGroup.username}
+                  onChange={e => setNewGroup({ ...newGroup, username: e.target.value })}
+                />
+              </div>
+            </div>
+            <label className="flex items-center gap-3 cursor-pointer p-4 bg-gray-50 rounded-xl">
+              <input
+                type="checkbox"
+                className="w-5 h-5 rounded text-indigo-600"
+                checked={newGroup.isPublic}
+                onChange={e => setNewGroup({ ...newGroup, isPublic: e.target.checked })}
+              />
+              <span className="text-sm font-medium">Public Group (Anyone can join)</span>
+            </label>
+            <div className="flex gap-4 mt-6">
+              <button
+                onClick={async () => {
+                  if (!newGroup.name) return alert("Name is required");
+                  try {
+                    await api.post("/group/create", newGroup);
+                    setShowCreate(false);
+                    fetchMyGroups();
+                  } catch (err: any) { alert(err.response?.data?.message || "Failed to create group"); }
+                }}
+                className="flex-1 py-4 bg-[#232b36] text-white rounded-xl font-bold hover:bg-[#1a2029] transition-colors"
+              >
+                Create
+              </button>
+              <button onClick={() => setShowCreate(false)} className="flex-1 py-4 border rounded-xl font-bold hover:bg-gray-50 transition-colors">Cancel</button>
             </div>
           </div>
         </div>
@@ -68,208 +280,171 @@ export default function Group() {
     );
   }
 
+  const groupOwnerId = activeGroup.owner?._id || activeGroup.owner;
+  const isOwner = currentUser?._id === groupOwnerId;
+
   return (
     <div className="min-h-screen bg-[#F7F8FD] p-10">
-      <div className="grid grid-cols-4 grid-rows-9 gap-4 min-h-[150vh]">
+      <div className="grid grid-cols-4 grid-rows-9 gap-6 min-h-[120vh]">
         {/* Header */}
-        <div className="col-span-4 row-span-2 rounded-2xl shadow bg-[#232b36] text-white">
-          <div className="flex items-center gap-6 p-6">
-            <div className="relative w-20 h-20 rounded-xl bg-white/10 flex items-center justify-center text-3xl">
-              {!isEditingIcon && <span>{iconEmoji}</span>}
-              {isLeader && !isEditingIcon && (
-                <button
-                  className="absolute -bottom-2 right-0 px-2 py-1 text-xs rounded-md bg-white/10 border border-white/20"
-                  onClick={() => setIsEditingIcon(true)}
-                >
-                  Edit
-                </button>
-              )}
-              {isLeader && isEditingIcon && (
-                <div className="absolute inset-0 flex items-center justify-center gap-2">
-                  <input
-                    value={iconEmoji}
-                    onChange={(e) => setIconEmoji(e.target.value)}
-                    className="w-12 text-center rounded bg-white/90 text-[#232b36]"
-                  />
-                  <button className="text-xs px-2 py-1 bg-white text-[#232b36] rounded" onClick={() => setIsEditingIcon(false)}>
-                    Save
-                  </button>
-                </div>
-              )}
-            </div>
-            <div className="flex-1">
-              {!isEditingName && <h2 className="text-xl font-semibold text-white">{groupName}</h2>}
-              {isLeader && !isEditingName && (
-                <button className="mt-1 text-xs px-2 py-1 rounded bg-white/10 border border-white/20" onClick={() => setIsEditingName(true)}>
-                  Edit name
-                </button>
-              )}
-              {isLeader && isEditingName && (
-                <div className="flex items-center gap-2">
-                  <input
-                    value={groupName}
-                    onChange={(e) => setGroupName(e.target.value)}
-                    className="text-sm rounded bg-white/90 text-[#232b36] px-2 py-1"
-                  />
-                  <button className="text-xs px-2 py-1 bg-white text-[#232b36] rounded" onClick={() => setIsEditingName(false)}>
-                    Save
-                  </button>
-                </div>
-              )}
-            <div className="mt-1 flex items-center gap-3">
-              <span className="px-3 py-1 rounded-full bg-white/10 text-white text-xs">{members.length} Members</span>
-              <span className="px-3 py-1 rounded-full bg-white/10 text-white text-xs">2,150 Score</span>
-              <span className="px-3 py-1 rounded-full bg-white/10 text-white text-xs">Active</span>
-            </div>
-            {isLeader ? (
-              <textarea
-                value={groupBio}
-                onChange={(e) => setGroupBio(e.target.value)}
-                className="mt-3 w-full rounded-lg bg-white/10 p-3 text-sm outline-none text-white placeholder:text-white/70"
-                rows={3}
-              />
-            ) : (
-              <p className="mt-3 text-sm text-gray-200 max-w-3xl">{groupBio}</p>
-            )}
-            <div className="mt-4 flex gap-3">
-              <button className="px-4 py-2 rounded-lg bg-white text-[#232b36]">Invite</button>
-              <button className="px-4 py-2 rounded-lg bg-white/10 text-white border border-white/20">Share</button>
-              <button className="px-4 py-2 rounded-lg bg-red-500/90 text-white" onClick={() => setHasGroup(false)}>Leave Group</button>
-            </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Members list */}
-        <div className="col-span-2 row-span-5 bg-white rounded-xl shadow col-start-1 row-start-3 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-gray-800 font-semibold">Members</h3>
-            <input placeholder="Search members" className="px-3 py-2 rounded-lg border border-gray-200 text-sm" />
-          </div>
-          <ul className="space-y-3">
-            {members.map((m, i) => (
-              <li key={i} className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-gray-200" />
-                  <span className="text-sm text-gray-800">{m.name}</span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-xs px-2 py-1 rounded-full bg-gray-100 text-gray-600">{m.role}</span>
-                  {isLeader && m.role !== "Leader" && (
-                    <button className="text-xs text-red-600">Remove</button>
+        <div className="col-span-4 row-span-2 rounded-3xl shadow-lg bg-[#232b36] text-white p-10 flex items-center justify-between relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full -mr-32 -mt-32 blur-3xl"></div>
+          <div className="flex items-center gap-10 relative z-10">
+            <div className="w-28 h-28 bg-white/10 rounded-3xl flex items-center justify-center text-5xl shadow-2xl border border-white/10">👥</div>
+            <div>
+              <h1 className="text-4xl font-bold mb-1">{activeGroup.name}</h1>
+              {!isEditingHandle ? (
+                <div className="flex items-center gap-3 mb-6">
+                  <p className="text-white/60 tracking-wide font-mono text-sm">@{activeGroup.username || (isOwner ? "set-handle" : "squad")}</p>
+                  {isOwner && (
+                    <button onClick={() => setIsEditingHandle(true)} className="p-1 hover:bg-white/10 rounded-md transition-colors text-white/30 hover:text-white">
+                      <Edit3 size={14} />
+                    </button>
                   )}
                 </div>
-              </li>
-            ))}
-          </ul>
+              ) : (
+                <div className="flex items-center gap-2 mb-6">
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 text-xs">@</span>
+                    <input
+                      autoFocus
+                      value={tempHandle}
+                      onChange={e => setTempHandle(e.target.value)}
+                      className="bg-white/10 border border-white/20 rounded-lg px-7 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 w-48"
+                      onKeyDown={e => e.key === 'Enter' && handleUpdateHandle()}
+                    />
+                  </div>
+                  <button onClick={handleUpdateHandle} className="p-1.5 bg-indigo-500 hover:bg-indigo-600 rounded-lg transition-colors"><Check size={14} /></button>
+                  <button onClick={() => setIsEditingHandle(false)} className="p-1.5 bg-white/10 hover:bg-white/20 rounded-lg transition-colors"><X size={14} /></button>
+                </div>
+              )}
+              <div className="flex gap-4">
+                <span className="px-5 py-2 rounded-full bg-white/10 text-xs font-bold uppercase tracking-wider border border-white/5">{activeGroup.members?.length} Members</span>
+                <span className="px-5 py-2 rounded-full bg-white/10 text-xs font-bold uppercase tracking-wider border border-white/5">{activeGroup.isPublic ? "Public" : "Private"}</span>
+              </div>
+            </div>
+          </div>
+          <div className="flex gap-3">
+            <button onClick={handleLeave} className="p-5 bg-red-500/10 text-red-400 rounded-2xl hover:bg-red-500/20 transition-all border border-red-500/10" title="Leave Group">
+              <LogOut size={28} />
+            </button>
+            <button onClick={() => setShowCreate(true)} className="p-5 bg-white/10 rounded-2xl hover:bg-white/20 transition-all border border-white/5">
+              <Plus size={28} />
+            </button>
+          </div>
         </div>
 
-        {/* Announcements */}
-        <div className="col-span-2 row-span-2 bg-white rounded-2xl shadow col-start-3 p-6">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-gray-800 font-semibold">Announcements</h3>
-            {isLeader && (
-              <button
-                className="text-xs px-3 py-1 rounded bg-gray-100 hover:bg-gray-200"
-                onClick={() => {
-                  setAnnouncementsDraft(announcements.join("\n"));
-                  setIsEditingAnnouncements(true);
-                }}
-              >
-                Edit
-              </button>
-            )}
+        {/* Members */}
+        <div className="col-span-2 row-span-5 bg-white rounded-3xl shadow-sm p-8 border border-gray-100 overflow-y-auto">
+          <h3 className="text-xl font-bold mb-8 flex items-center gap-3 text-gray-800"><Users size={22} className="text-indigo-600" /> Crew Roster</h3>
+          <div className="space-y-4">
+            {activeGroup.members?.map((m: any, i: number) => {
+              const isOwnerMember = m.role === "owner";
+              const isAdmin = m.role === "admin";
+              const isFriend = friends.some(f => f.userId?._id === m.userId?._id);
+              const isMe = currentUser?._id === m.userId?._id;
+
+              return (
+                <div key={i} className="flex items-center justify-between p-4 rounded-2xl hover:bg-gray-50 transition-all border border-transparent hover:border-gray-100">
+                  <div className="flex items-center gap-5">
+                    <img src={m.userId?.profilePicture || "/profile.png"} className="w-12 h-12 rounded-full border-2 border-white shadow-sm" alt="" />
+                    <div>
+                      <h4 className="font-bold text-gray-800">{m.userId?.fullname || "Loading..."}</h4>
+                      <div className="flex items-center gap-2">
+                        <span className={`text-[10px] uppercase font-black tracking-widest ${isOwnerMember ? 'text-amber-500' : isAdmin ? 'text-indigo-400' : 'text-gray-300'}`}>
+                          {m.role}
+                        </span>
+                        <p className="text-[10px] text-gray-400">@{m.userId?.username}</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {/* If I am owner and this is a member, show promote button */}
+                    {isOwner && m.role === 'member' && (
+                      <button onClick={() => handlePromote(m.userId._id)} className="p-2 text-indigo-400 hover:bg-indigo-50 rounded-lg transition-colors" title="Promote to Co-admin">
+                        <ArrowUpCircle size={18} />
+                      </button>
+                    )}
+                    {/* Friend Interaction */}
+                    {!isMe && !isFriend && (
+                      <button onClick={() => sendFriendRequest(m.userId._id)} className="p-2 text-indigo-500 hover:bg-indigo-50 rounded-lg transition-colors" title="Add Friend">
+                        <UserPlus size={18} />
+                      </button>
+                    )}
+                    {isFriend && !isMe && (
+                      <span className="p-2 text-green-500 bg-green-50 rounded-lg text-[10px] font-black uppercase">Friend</span>
+                    )}
+                    {isOwnerMember && <Shield size={18} className="text-amber-500 fill-amber-500/20" />}
+                  </div>
+                </div>
+              )
+            })}
           </div>
-          {!isEditingAnnouncements && (
-            <ul className="space-y-2 text-sm text-gray-700">
-              {announcements.map((a, i) => (
-                <li key={i}>{a}</li>
+        </div>
+
+        {/* Requests (Owner only) */}
+        {requests.length > 0 && (
+          <div className="col-span-2 row-span-3 bg-indigo-50/50 rounded-3xl border border-indigo-100 p-8 shadow-inner">
+            <h3 className="text-xl font-bold text-indigo-900 mb-8 flex items-center gap-3">Incoming Join Requests ({requests.length})</h3>
+            <div className="space-y-4">
+              {requests.map((r) => (
+                <div key={r.userId._id} className="bg-white p-5 rounded-2xl shadow-sm flex items-center justify-between border border-indigo-100/30">
+                  <div className="flex items-center gap-4">
+                    <img src={r.userId.profilePicture || "/profile.png"} className="w-10 h-10 rounded-full border-2 border-indigo-50" alt="" />
+                    <span className="text-sm font-bold text-gray-800">{r.userId.fullname}</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => handleRequest(r.userId._id, 'accept')} className="p-3 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 shadow-lg shadow-indigo-200 transition-all"><Check size={20} /></button>
+                    <button onClick={() => handleRequest(r.userId._id, 'reject')} className="p-3 bg-white text-gray-400 rounded-xl border border-gray-100 hover:text-red-500 transition-all"><X size={20} /></button>
+                  </div>
+                </div>
               ))}
-            </ul>
-          )}
-          {isEditingAnnouncements && (
-            <div className="space-y-2">
-              <textarea
-                value={announcementsDraft}
-                onChange={(e) => setAnnouncementsDraft(e.target.value)}
-                rows={4}
-                className="w-full rounded border border-gray-200 p-2 text-sm"
-              />
-              <div className="flex gap-2">
-                <button
-                  className="px-3 py-1 rounded bg-[#232b36] text-white text-xs"
-                  onClick={() => {
-                    setAnnouncements(announcementsDraft.split(/\n+/).filter(Boolean));
-                    setIsEditingAnnouncements(false);
-                  }}
-                >
-                  Save
-                </button>
-                <button
-                  className="px-3 py-1 rounded border text-xs"
-                  onClick={() => setIsEditingAnnouncements(false)}
-                >
-                  Cancel
-                </button>
+            </div>
+          </div>
+        )}
+
+        {/* Squad Selection */}
+        <div className={`col-span-2 ${requests.length > 0 ? 'row-span-4' : 'row-span-7'} bg-white rounded-3xl shadow-sm p-8 border border-gray-100`}>
+          <h3 className="text-xl font-bold mb-6 text-gray-800">Your Squads</h3>
+          <div className="space-y-4">
+            {groups.map(g => (
+              <div
+                key={g._id}
+                onClick={() => setActiveGroup(g)}
+                className={`p-6 rounded-3xl cursor-pointer transition-all border ${activeGroup?._id === g._id ? 'bg-[#232b36] text-white border-transparent shadow-2xl scale-[1.02]' : 'bg-gray-50 text-gray-700 border-gray-100 hover:bg-white hover:shadow-md'}`}
+              >
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="font-bold text-lg block mb-1">{g.name}</span>
+                    <span className={`text-xs ${activeGroup?._id === g._id ? 'text-white/50' : 'text-gray-400'} font-bold uppercase tracking-widest`}>{g.members?.length} Members</span>
+                  </div>
+                  <div className={`w-10 h-10 rounded-2xl flex items-center justify-center ${activeGroup?._id === g._id ? 'bg-white/10' : 'bg-white shadow-sm'}`}>
+                    <Users size={18} />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Suggestions in Sidebar if few groups */}
+          {groups.length > 0 && suggestions.length > 0 && (
+            <div className="mt-10 pt-10 border-t border-gray-100">
+              <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-4">You might like</h4>
+              <div className="space-y-3">
+                {suggestions.map(s => (
+                  <div key={s._id} className="flex items-center justify-between group">
+                    <div className="flex-1">
+                      <p className="text-sm font-bold text-gray-700 group-hover:text-indigo-600 transition-colors">{s.name}</p>
+                      <p className="text-[10px] text-gray-400">{s.members?.length} members</p>
+                    </div>
+                    <button onClick={() => handleJoin(s._id)} className="text-[10px] font-black text-indigo-500 uppercase px-2 py-1 bg-indigo-50 rounded-md">Join</button>
+                  </div>
+                ))}
               </div>
             </div>
           )}
-        </div>
-
-        {/* Requests (leader only) */}
-        <div className="col-span-2 row-span-2 bg-white rounded-2xl shadow col-start-3 row-start-5 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-gray-800 font-semibold">Join Requests</h3>
-            {!isLeader && <span className="text-xs text-gray-500">Only visible to leaders</span>}
-          </div>
-          {isLeader ? (
-            <ul className="space-y-3">
-              {pendingRequests.map((u, i) => (
-                <li key={i} className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-7 h-7 rounded-full bg-gray-200" />
-                    <span className="text-sm text-gray-800">@{u}</span>
-                  </div>
-                  <div className="flex gap-2">
-                    <button className="px-3 py-1 rounded-md bg-[#232b36] text-white text-xs">Accept</button>
-                    <button className="px-3 py-1 rounded-md bg-white border text-gray-700 text-xs">Decline</button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-sm text-gray-500">No access</p>
-          )}
-        </div>
-
-        <div className="col-span-2 row-span-4 bg-white rounded-2xl shadow col-start-3 row-start-7 p-6">
-          <h3 className="text-gray-800 font-semibold mb-2">War Log</h3>
-          <p className="text-xs text-gray-500 mb-4">Recent battles</p>
-          <div className="grid grid-cols-2 gap-3">
-            {["Win • 3-1", "Win • 5-4", "Lose • 2-3", "Win • 4-0", "Win • 6-5", "Win • 7-6"].map((r, i) => (
-              <div key={i} className="rounded-xl p-4 bg-gray-50 border border-gray-200 text-sm text-gray-800 flex items-center justify-between">
-                <span>{r}</span>
-                <span className="text-xs text-gray-500">+{(i+1)*10} pts</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Achievements */}
-        <div className="col-span-2 row-span-4 bg-white rounded-2xl shadow col-start-4 row-start-7 p-6">
-          <h3 className="text-gray-800 font-semibold mb-2">Group Achievements</h3>
-          <p className="text-xs text-gray-500 mb-4">Milestones earned together</p>
-          <div className="grid grid-cols-2 gap-3">
-            {achievements.map((a, i) => (
-              <div key={i} className="rounded-xl p-4 bg-gray-50 text-sm text-gray-800 border border-gray-200">
-                {a}
-              </div>
-            ))}
-          </div>
         </div>
       </div>
     </div>
   );
 }
-
-
