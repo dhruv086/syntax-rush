@@ -6,7 +6,7 @@ const codingProblemSchema = new mongoose.Schema({
     required: true,
     index: true
   },
-  problemNumber:{
+  problemNumber: {
     type: Number,
     required: true,
     unique: true
@@ -35,7 +35,7 @@ const codingProblemSchema = new mongoose.Schema({
     required: true,
     index: true
   },
-  totalProblem:{
+  totalProblem: {
     type: Number,
     default: 0
   },
@@ -91,7 +91,6 @@ const codingProblemSchema = new mongoose.Schema({
 });
 
 // Indexes for coding problems
-codingProblemSchema.index({ title: 1 });
 codingProblemSchema.index({ difficulty: 1, isActive: 1 });
 codingProblemSchema.index({ "tags.name": 1 });
 

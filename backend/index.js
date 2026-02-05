@@ -57,7 +57,14 @@ app.use("/api/v1/messages", messageRoutes);
 app.use("/api/v1/social", socialRoutes);
 
 const PORT = process.env.PORT || 8000;
-server.listen(PORT, () => {
-  console.log("server is running on port", PORT);
-  connectDB();
-})
+
+connectDB()
+  .then(() => {
+    server.listen(PORT, () => {
+      console.log(`Server is running on port ${PORT}`);
+    });
+  })
+  .catch((err) => {
+    console.error("Failed to start server due to DB connection error:", err);
+    process.exit(1);
+  });
