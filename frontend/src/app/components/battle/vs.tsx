@@ -1,7 +1,23 @@
 "use client";
 import React, { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Swords, Zap, Trophy, Shield, Users, Target, Search, X, Loader2, ArrowRight, ChevronRight, ChevronLeft, Crown, Star, Inbox } from "lucide-react";
+import {
+  Swords,
+  Zap,
+  Trophy,
+  Shield,
+  Users,
+  Target,
+  Search,
+  X,
+  Loader2,
+  ArrowRight,
+  ChevronRight,
+  ChevronLeft,
+  Crown,
+  Star,
+  Inbox,
+} from "lucide-react";
 
 import { socket } from "@/socket";
 import api from "@/lib/api";
@@ -48,7 +64,9 @@ export default function Vs() {
     socket.emit("join_battle", { battleId: battle._id, user });
 
     socket.on("room_state", (state: any) => {
-      const otherPlayer = state.players.find((p: any) => String(p.userId) !== String(user._id));
+      const otherPlayer = state.players.find(
+        (p: any) => String(p.userId) !== String(user._id),
+      );
       if (otherPlayer) {
         setOpponent(otherPlayer);
         setProgress(100);
@@ -78,7 +96,9 @@ export default function Vs() {
     };
   }, []);
 
-  const [matchType, setMatchType] = useState<"1v1_quick" | "1v1_classic" | "1v1_friendly">("1v1_quick");
+  const [matchType, setMatchType] = useState<
+    "1v1_quick" | "1v1_classic" | "1v1_friendly"
+  >("1v1_quick");
 
   const onStartMatchmaking = async (type: string) => {
     if (!user) {
@@ -119,19 +139,24 @@ export default function Vs() {
         onClick={() => setShowGroup(!showGroup)}
         className="fixed top-28 right-6 z-50 px-6 py-3 rounded-2xl bg-[#232B36] text-white font-black text-xs uppercase tracking-widest shadow-2xl shadow-indigo-200 flex items-center gap-3 hover:scale-105 transition-all group"
       >
-        {showGroup ? <ChevronLeft size={16} /> : null}
-        {showGroup ? "Back to Solo" : "Group Battle"}
-        {!showGroup ? <ChevronRight size={16} className="group-hover:translate-x-1 transition-transform" /> : null}
+        {/* {showGroup ? <ChevronLeft size={16} /> : null} */}
+        {/* {showGroup ? "Back to Solo" : "Group Battle"} */}
+        {!showGroup ? (
+          <ChevronRight
+            size={16}
+            className="group-hover:translate-x-1 transition-transform"
+          />
+        ) : null}
       </button>
 
       <div
-        className={`flex w-[200%] transition-transform duration-700 cubic-bezier(0.4, 0, 0.2, 1) ${showGroup ? "-translate-x-1/2" : "translate-x-0"
-          }`}
+        className={`flex w-[200%] transition-transform duration-700 cubic-bezier(0.4, 0, 0.2, 1) ${
+          showGroup ? "-translate-x-1/2" : "translate-x-0"
+        }`}
       >
         {/* SOLO BATTLE SECTION */}
         <section className="w-1/2 px-6">
           <div className="container mx-auto">
-
             {/* Header HUD */}
             <div className="flex flex-col md:flex-row items-center justify-between gap-8 mb-12 animate-in fade-in slide-in-from-top-4 duration-700">
               <div className="flex items-center gap-6 p-1 bg-white rounded-[2rem] shadow-sm border border-gray-100 pr-8">
@@ -139,25 +164,33 @@ export default function Vs() {
                   <CrownIcon size={24} />
                 </div>
                 <div>
-                  <h2 className="text-xl font-black text-[#232B36]">BATTLE HUB</h2>
-                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{user?.username || 'GUEST'}&apos;s Matchmaking</p>
+                  <h2 className="text-xl font-black text-[#232B36]">
+                    BATTLE HUB
+                  </h2>
+                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">
+                    {user?.username || "GUEST"}&apos;s Matchmaking
+                  </p>
                 </div>
               </div>
 
               <div className="flex items-center gap-4">
                 <div className="px-6 py-3 bg-white rounded-2xl shadow-sm border border-gray-100 flex items-center gap-3">
                   <Star size={16} className="text-amber-500 fill-amber-500" />
-                  <span className="font-black text-sm">{user?.performanceStats?.totalPoints || 0} <span className="text-gray-400 font-bold">PTS</span></span>
+                  <span className="font-black text-sm">
+                    {user?.performanceStats?.totalPoints || 0}{" "}
+                    <span className="text-gray-400 font-bold">PTS</span>
+                  </span>
                 </div>
                 <div className="px-6 py-3 bg-white rounded-2xl shadow-sm border border-gray-100 flex items-center gap-3">
                   <Inbox size={16} className="text-indigo-500" />
-                  <span className="font-black text-xs uppercase tracking-widest">Inbox</span>
+                  <span className="font-black text-xs uppercase tracking-widest">
+                    Inbox
+                  </span>
                 </div>
               </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
-
               {/* Left Stats Column */}
               <div className="lg:col-span-4 space-y-8 animate-in fade-in slide-in-from-left-4 duration-700 delay-100">
                 <div className="bg-[#232B36] rounded-[2.5rem] p-10 text-white relative overflow-hidden shadow-2xl shadow-indigo-200">
@@ -166,43 +199,71 @@ export default function Vs() {
                     <div className="w-32 h-32 rounded-full border-4 border-white/10 p-1 mb-6 relative">
                       <div className="absolute inset-0 bg-indigo-500/20 blur-xl animate-pulse" />
                       {user?.avatar ? (
-                        <img src={user.avatar} className="w-full h-full rounded-full object-cover" alt="avatar" />
+                        <img
+                          src={user.avatar}
+                          className="w-full h-full rounded-full object-cover"
+                          alt="avatar"
+                        />
                       ) : (
                         <div className="w-full h-full bg-gray-700 rounded-full flex items-center justify-center font-black text-3xl">
-                          {user?.username?.substring(0, 2).toUpperCase() || "UN"}
+                          {user?.username?.substring(0, 2).toUpperCase() ||
+                            "UN"}
                         </div>
                       )}
                     </div>
-                    <h3 className="text-2xl font-black mb-1 uppercase tracking-tighter">{user?.username || "Guest"}</h3>
-                    <span className="px-3 py-1 bg-white/10 rounded-lg text-[10px] font-black uppercase tracking-widest border border-white/5">{user?.performanceStats?.currentLeague || "Standard"}</span>
+                    <h3 className="text-2xl font-black mb-1 uppercase tracking-tighter">
+                      {user?.username || "Guest"}
+                    </h3>
+                    <span className="px-3 py-1 bg-white/10 rounded-lg text-[10px] font-black uppercase tracking-widest border border-white/5">
+                      {user?.performanceStats?.currentLeague || "Standard"}
+                    </span>
 
                     <div className="grid grid-cols-3 gap-3 w-full mt-10">
                       <div className="bg-white/5 border border-white/5 p-4 rounded-2xl text-center">
-                        <p className="text-[9px] text-white/40 font-bold uppercase mb-1">Win Rate</p>
+                        <p className="text-[9px] text-white/40 font-bold uppercase mb-1">
+                          Win Rate
+                        </p>
                         <p className="text-sm font-black text-white">62%</p>
                       </div>
                       <div className="bg-white/5 border border-white/5 p-4 rounded-2xl text-center">
-                        <p className="text-[9px] text-white/40 font-bold uppercase mb-1">Streak</p>
+                        <p className="text-[9px] text-white/40 font-bold uppercase mb-1">
+                          Streak
+                        </p>
                         <p className="text-sm font-black text-indigo-400">18</p>
                       </div>
                       <div className="bg-white/5 border border-white/5 p-4 rounded-2xl text-center">
-                        <p className="text-[9px] text-white/40 font-bold uppercase mb-1">Wins</p>
-                        <p className="text-sm font-black text-white">{user?.performanceStats?.battleWon || 0}</p>
+                        <p className="text-[9px] text-white/40 font-bold uppercase mb-1">
+                          Wins
+                        </p>
+                        <p className="text-sm font-black text-white">
+                          {user?.performanceStats?.battleWon || 0}
+                        </p>
                       </div>
                     </div>
                   </div>
                 </div>
 
                 <div className="bg-white rounded-[2.5rem] p-8 border border-gray-100 shadow-sm">
-                  <h4 className="text-gray-400 text-xs font-black uppercase tracking-[0.2em] mb-6 px-2 text-center">Battle Metrics</h4>
+                  <h4 className="text-gray-400 text-xs font-black uppercase tracking-[0.2em] mb-6 px-2 text-center">
+                    Battle Metrics
+                  </h4>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="p-6 bg-gray-50 rounded-3xl text-center">
-                      <p className="text-[10px] text-gray-400 font-bold uppercase mb-2">Total Battles</p>
-                      <div className="text-xl font-black text-[#232B36]">{user?.performanceStats?.battleParticipated || 0}<span className="text-gray-300">/250</span></div>
+                      <p className="text-[10px] text-gray-400 font-bold uppercase mb-2">
+                        Total Battles
+                      </p>
+                      <div className="text-xl font-black text-[#232B36]">
+                        {user?.performanceStats?.battleParticipated || 0}
+                        <span className="text-gray-300">/250</span>
+                      </div>
                     </div>
                     <div className="p-6 bg-gray-50 rounded-3xl text-center">
-                      <p className="text-[10px] text-gray-400 font-bold uppercase mb-2">Efficiency</p>
-                      <div className="text-xl font-black text-[#6266F0]">95%</div>
+                      <p className="text-[10px] text-gray-400 font-bold uppercase mb-2">
+                        Efficiency
+                      </p>
+                      <div className="text-xl font-black text-[#6266F0]">
+                        95%
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -210,41 +271,82 @@ export default function Vs() {
 
               {/* Right Selection Column */}
               <div className="lg:col-span-8 space-y-8 animate-in fade-in slide-in-from-right-4 duration-700 delay-200">
-
                 <div className="bg-white rounded-[3rem] p-10 border border-gray-100 shadow-sm">
                   <div className="mb-10">
-                    <h3 className="text-2xl font-black text-[#232B36]">Solo Arena</h3>
-                    <p className="text-gray-400 font-medium">Challenge the global network and climb the leaderboards.</p>
+                    <h3 className="text-2xl font-black text-[#232B36]">
+                      Solo Arena
+                    </h3>
+                    <p className="text-gray-400 font-medium">
+                      Challenge the global network and climb the leaderboards.
+                    </p>
                   </div>
 
                   <div className="space-y-4">
                     {[
-                      { title: "Quick Match", win: "63.2%", diff: "Easy", type: "1v1_quick", desc: "Fast matchmaking, random problems." },
-                      { title: "1v1 Classic", win: "69.2%", diff: "Hard", type: "1v1_classic", desc: "Standard competitive format." },
-                      { title: "Friendly", win: "53.2%", diff: "Medium", type: "1v1_friendly", desc: "Unrated match with a friend." }
+                      {
+                        title: "Quick Match",
+                        win: "63.2%",
+                        diff: "Easy",
+                        type: "1v1_quick",
+                        desc: "Fast matchmaking, random problems.",
+                      },
+                      {
+                        title: "1v1 Classic",
+                        win: "69.2%",
+                        diff: "Hard",
+                        type: "1v1_classic",
+                        desc: "Standard competitive format.",
+                      },
+                      {
+                        title: "Friendly",
+                        win: "53.2%",
+                        diff: "Medium",
+                        type: "1v1_friendly",
+                        desc: "Unrated match with a friend.",
+                      },
                     ].map((row, i) => (
-                      <div key={i} className="flex items-center justify-between p-6 bg-gray-50/50 rounded-[2rem] border border-transparent hover:border-indigo-100/50 hover:bg-indigo-50/30 transition-all group">
+                      <div
+                        key={i}
+                        className="flex items-center justify-between p-6 bg-gray-50/50 rounded-[2rem] border border-transparent hover:border-indigo-100/50 hover:bg-indigo-50/30 transition-all group"
+                      >
                         <div className="flex items-center gap-6">
                           <div className="w-12 h-12 bg-white rounded-2xl flex items-center justify-center font-black text-xs text-gray-400 border border-gray-100">
                             0{i + 1}
                           </div>
                           <div>
-                            <h4 className="font-bold text-[#232B36]">{row.title}</h4>
-                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{row.desc}</p>
+                            <h4 className="font-bold text-[#232B36]">
+                              {row.title}
+                            </h4>
+                            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">
+                              {row.desc}
+                            </p>
                           </div>
                         </div>
 
                         <div className="flex items-center gap-12">
                           <div className="hidden md:block text-right">
-                            <p className="text-[9px] text-gray-400 font-black uppercase mb-1">Win Rate</p>
-                            <span className="text-xs font-black text-indigo-500">{row.win}</span>
+                            <p className="text-[9px] text-gray-400 font-black uppercase mb-1">
+                              Win Rate
+                            </p>
+                            <span className="text-xs font-black text-indigo-500">
+                              {row.win}
+                            </span>
                           </div>
                           <div className="hidden md:block text-center">
-                            <p className="text-[9px] text-gray-400 font-black uppercase mb-1">Tier</p>
-                            <span className={`text-[10px] px-3 py-1 rounded-lg font-black uppercase tracking-tighter ${row.diff === 'Hard' ? 'bg-red-50 text-red-500' : row.diff === 'Easy' ? 'bg-emerald-50 text-emerald-500' : 'bg-blue-50 text-blue-500'}`}>{row.diff}</span>
+                            <p className="text-[9px] text-gray-400 font-black uppercase mb-1">
+                              Tier
+                            </p>
+                            <span
+                              className={`text-[10px] px-3 py-1 rounded-lg font-black uppercase tracking-tighter ${row.diff === "Hard" ? "bg-red-50 text-red-500" : row.diff === "Easy" ? "bg-emerald-50 text-emerald-500" : "bg-blue-50 text-blue-500"}`}
+                            >
+                              {row.diff}
+                            </span>
                           </div>
                           <button
-                            onClick={() => { setMatchType(row.type as any); onStartMatchmaking(row.type); }}
+                            onClick={() => {
+                              setMatchType(row.type as any);
+                              onStartMatchmaking(row.type);
+                            }}
                             className="px-8 py-3 bg-[#232B36] text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-[#6266F0] transition-all"
                           >
                             Start
@@ -255,13 +357,12 @@ export default function Vs() {
                   </div>
                 </div>
               </div>
-
             </div>
           </div>
         </section>
 
         {/* GROUP BATTLE SECTION */}
-        <section className="w-1/2 px-6">
+        {/* <section className="w-1/2 px-6">
           <div className="container mx-auto">
             <div className="bg-white rounded-[4rem] min-h-[70vh] shadow-xl border border-gray-100 relative overflow-hidden p-12 flex flex-col items-center justify-center text-center">
               <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-indigo-50 rounded-full -mr-64 -mt-64 blur-3xl" />
@@ -299,7 +400,7 @@ export default function Vs() {
             </div>
           </div>
         </section>
-
+ */}
       </div>
 
       {/* Matchmaking overlay */}
@@ -307,24 +408,40 @@ export default function Vs() {
         <div className="fixed inset-0 bg-[#232B36]/90 backdrop-blur-xl flex items-center justify-center z-[100] p-6 animate-in fade-in duration-300">
           <div className="w-full max-w-lg bg-white rounded-[3rem] p-12 shadow-2xl relative overflow-hidden text-center">
             <div className="absolute top-0 left-0 w-full h-1 bg-gray-100">
-              <div className="h-full bg-[#6266F0] transition-all duration-300" style={{ width: `${progress}%` }} />
+              <div
+                className="h-full bg-[#6266F0] transition-all duration-300"
+                style={{ width: `${progress}%` }}
+              />
             </div>
 
-            <button onClick={onCancelMatchmaking} className="absolute top-8 right-8 text-gray-400 hover:text-gray-600">
+            <button
+              onClick={onCancelMatchmaking}
+              className="absolute top-8 right-8 text-gray-400 hover:text-gray-600"
+            >
               <X size={24} />
             </button>
 
             <div className="mb-10">
-              <p className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.3em] mb-4">Establishing Secure Connection</p>
-              <h3 className="text-3xl font-black text-[#232B36] mb-2">{progress < 100 ? 'Searching...' : 'Ready'}</h3>
-              <p className="text-gray-400 font-medium text-xs">Battle Mode: {matchType}</p>
+              <p className="text-[10px] font-black text-indigo-500 uppercase tracking-[0.3em] mb-4">
+                Establishing Secure Connection
+              </p>
+              <h3 className="text-3xl font-black text-[#232B36] mb-2">
+                {progress < 100 ? "Searching..." : "Ready"}
+              </h3>
+              <p className="text-gray-400 font-medium text-xs">
+                Battle Mode: {matchType}
+              </p>
             </div>
 
             <div className="flex items-center justify-center gap-10 mb-12">
               <div className="flex flex-col items-center">
                 <div className="w-24 h-24 rounded-full border-2 border-indigo-100 p-1 mb-4 shadow-xl overflow-hidden">
                   {user?.avatar ? (
-                    <img src={user.avatar} className="w-full h-full rounded-full object-cover" alt="me" />
+                    <img
+                      src={user.avatar}
+                      className="w-full h-full rounded-full object-cover"
+                      alt="me"
+                    />
                   ) : (
                     <div className="w-full h-full bg-indigo-50 rounded-full flex items-center justify-center font-black text-[#6266F0]">
                       {user?.username?.substring(0, 2).toUpperCase() || "ME"}
@@ -337,22 +454,36 @@ export default function Vs() {
               <div className="text-3xl font-black text-gray-200">VS</div>
 
               <div className="flex flex-col items-center">
-                <div className={`w-24 h-24 rounded-full border-2 ${opponent ? 'border-amber-100 shadow-xl shadow-amber-100' : 'border-dashed border-gray-200'} p-1 mb-4 transition-all duration-500 overflow-hidden`}>
+                <div
+                  className={`w-24 h-24 rounded-full border-2 ${opponent ? "border-amber-100 shadow-xl shadow-amber-100" : "border-dashed border-gray-200"} p-1 mb-4 transition-all duration-500 overflow-hidden`}
+                >
                   {opponent ? (
                     opponent.avatar ? (
-                      <img src={opponent.avatar} className="w-full h-full rounded-full object-cover" alt="opp" />
+                      <img
+                        src={opponent.avatar}
+                        className="w-full h-full rounded-full object-cover"
+                        alt="opp"
+                      />
                     ) : (
                       <div className="w-full h-full bg-amber-50 rounded-full flex items-center justify-center font-black text-amber-500">
-                        {opponent.username?.substring(0, 2).toUpperCase() || "OP"}
+                        {opponent.username?.substring(0, 2).toUpperCase() ||
+                          "OP"}
                       </div>
                     )
                   ) : (
                     <div className="w-full h-full bg-gray-50 rounded-full flex items-center justify-center">
-                      <Loader2 size={32} className="text-gray-200 animate-spin" />
+                      <Loader2
+                        size={32}
+                        className="text-gray-200 animate-spin"
+                      />
                     </div>
                   )}
                 </div>
-                <span className={`font-black text-sm ${opponent ? 'text-[#232B36]' : 'text-gray-400'}`}>{opponent?.username || "???"}</span>
+                <span
+                  className={`font-black text-sm ${opponent ? "text-[#232B36]" : "text-gray-400"}`}
+                >
+                  {opponent?.username || "???"}
+                </span>
               </div>
             </div>
 
@@ -365,7 +496,9 @@ export default function Vs() {
               </button>
             ) : (
               <div className="flex flex-col items-center gap-2">
-                <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{progress}% Synchronized</div>
+                <div className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                  {progress}% Synchronized
+                </div>
                 <div className="flex gap-1">
                   <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-bounce" />
                   <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-bounce delay-100" />

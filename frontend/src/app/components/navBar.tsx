@@ -8,7 +8,7 @@ const navLinks = [
   { name: "home", href: "/" },
   { name: "problem", href: "/problem" },
   { name: "battle", href: "/battle" },
-  { name: "contest", href: "/contest" },
+  // { name: "contest", href: "/contest" },
 ];
 
 export default function NavBar() {
@@ -34,7 +34,10 @@ export default function NavBar() {
   return (
     <nav className="sticky top-0 w-full flex items-center justify-between px-10 py-5 bg-white/70 backdrop-blur-xl h-[90px] z-[100] border-b border-white/20 shadow-[0_2px_20px_-5px_rgba(0,0,0,0.05)]">
       {/* Logo Section */}
-      <div className="flex items-center gap-3 group cursor-pointer" onClick={() => (window.location.href = "/")}>
+      <div
+        className="flex items-center gap-3 group cursor-pointer"
+        onClick={() => (window.location.href = "/")}
+      >
         <div className="relative">
           <div className="absolute -inset-1 bg-indigo-500 rounded-full blur opacity-20 group-hover:opacity-40 transition duration-500"></div>
           <svg
@@ -93,8 +96,8 @@ export default function NavBar() {
 
       {/* Auth/Profile Section */}
       <div className="hidden md:flex items-center gap-6">
-        {!loading && (
-          user ? (
+        {!loading &&
+          (user ? (
             <div
               className="group relative p-1 rounded-full border-2 border-indigo-50 hover:border-indigo-100 transition-all cursor-pointer"
               onClick={() => (window.location.href = "/profile")}
@@ -121,8 +124,7 @@ export default function NavBar() {
                 Join Arena
               </a>
             </div>
-          )
-        )}
+          ))}
       </div>
 
       <button
@@ -149,8 +151,8 @@ export default function NavBar() {
               {link.name}
             </a>
           ))}
-          {!loading && (
-            user ? (
+          {!loading &&
+            (user ? (
               <a
                 href="/profile"
                 className="flex items-center gap-2 mt-2 px-6 py-2 rounded-full bg-gray-100"
@@ -177,8 +179,7 @@ export default function NavBar() {
                   Sign Up
                 </a>
               </div>
-            )
-          )}
+            ))}
         </div>
       )}
     </nav>
