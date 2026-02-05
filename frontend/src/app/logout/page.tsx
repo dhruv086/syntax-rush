@@ -1,46 +1,31 @@
-import React, { useState } from "react";
+"use client";
+import React, { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import api from "@/lib/api";
 
-export default function Login({ onLogin }: { onLogin?: () => void }) {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+export default function LogoutPage() {
+  const router = useRouter();
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (onLogin) onLogin();
-  };
+  useEffect(() => {
+    const performLogout = async () => {
+      try {
+        await api.post("/auth/logout");
+      } catch (err) {
+        console.error("Logout error:", err);
+      } finally {
+        router.push("/login");
+      }
+    };
+    performLogout();
+  }, [router]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-[#232b36]">
-      <form
-        onSubmit={handleSubmit}
-        className="bg-white rounded-xl shadow-lg p-8 w-full max-w-sm flex flex-col gap-4"
-      >
-        <h2 className="text-2xl font-bold text-center text-[#232b36] mb-4">
-          Login
-        </h2>
-        <input
-          type="email"
-          placeholder="Email"
-          className="border rounded px-3 py-2"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          required
-        />
-        <input
-          type="password"
-          placeholder="Password"
-          className="border rounded px-3 py-2"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required
-        />
-        <button
-          type="submit"
-          className="bg-[#232b36] text-white rounded px-4 py-2 font-semibold hover:bg-[#1F2937] transition"
-        >
-          Login
-        </button>
-      </form>
+    <div className="min-h-screen flex items-center justify-center bg-[#F7F8FD]">
+      <div className="text-center">
+        <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+        <h2 className="text-xl font-bold text-[#232B36]">Signing you out...</h2>
+        <p className="text-gray-500 mt-2">Please wait a moment.</p>
+      </div>
     </div>
   );
 }
