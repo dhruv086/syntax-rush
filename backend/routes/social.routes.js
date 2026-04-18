@@ -5,7 +5,9 @@ import {
   sendFriendRequest,
   getFriendRequests,
   acceptFriendRequest,
-  getFriendsList
+  getFriendsList,
+  rejectFriendRequest,
+  removeFriend
 } from "../controllers/social.controller.js";
 
 const router = express.Router();
@@ -16,6 +18,8 @@ router.route("/search").get(searchUsers);
 router.route("/requests").get(getFriendRequests);
 router.route("/request").post(sendFriendRequest);
 router.route("/accept").post(acceptFriendRequest);
+router.route("/reject").post(rejectFriendRequest);
+router.route("/remove").post(removeFriend);
 router.route("/friends").get(getFriendsList);
 
 export default router;

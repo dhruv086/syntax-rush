@@ -30,8 +30,23 @@ const submissionSchema = new mongoose.Schema({
     default: Date.now
   },
   testcasesPassed: Number,
-  totalTestcases: Number
+  totalTestcases: Number,
+  isAiGenerated: {
+    type: Boolean,
+    default: false,
+  },
+  plagiarismRisk: {
+    type: String,
+    enum: ["CLEAN", "LOW", "MEDIUM", "HIGH"],
+    default: "CLEAN",
+  },
+  aiConfidence: {
+    type: Number,
+    default: 0,
+  },
 });
 
+submissionSchema.index({ user: 1, submittedAt: -1 });
+submissionSchema.index({ problemId: 1, user: 1 });
 
 export const Submission = mongoose.model("Submission", submissionSchema);

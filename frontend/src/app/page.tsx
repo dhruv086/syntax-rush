@@ -1,10 +1,41 @@
 "use client";
-import React from "react";
+import React, { useState, useEffect } from "react";
 import NavBar from "./components/navBar";
 import Link from "next/link";
-import { Swords, Trophy, Users, Zap, ArrowRight, Shield, Star, Crown } from "lucide-react";
+import api from "@/lib/api";
+import { Swords, Trophy, Users, Zap, ArrowRight, Shield, Star, Crown, Code, Target, Globe } from "lucide-react";
+
+interface PlatformStats {
+  totalUsers: number;
+  totalProblems: number;
+  totalSubmissions: number;
+  acceptedSubmissions: number;
+  totalBattles: number;
+  activeBattles: number;
+  countries: number;
+}
+
+function formatStat(num: number): string {
+  if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
+  if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
+  return num.toString();
+}
 
 export default function Home() {
+  const [stats, setStats] = useState<PlatformStats | null>(null);
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const res = await api.get("/auth/stats");
+        setStats(res.data.data);
+      } catch {
+        // Fallback handled in UI
+      }
+    };
+    fetchStats();
+  }, []);
+
   return (
     <div className="min-h-screen bg-[#F7F8FD]">
       <NavBar />
@@ -16,7 +47,8 @@ export default function Home() {
 
         <div className="container mx-auto px-6 relative z-10 text-center">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-indigo-50 border border-indigo-100 text-indigo-600 text-sm font-black uppercase tracking-widest mb-10 animate-in fade-in slide-in-from-bottom-4 duration-700">
-            
+            <Zap size={16} />
+            Competitive Coding Arena
           </div>
 
           <h1 className="text-6xl md:text-8xl font-black text-[#232B36] tracking-tighter mb-8 leading-[0.9] animate-in fade-in slide-in-from-bottom-8 duration-700 delay-100">
@@ -70,21 +102,38 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Stat Section */}
+      {/* Live Stat Section */}
       <section className="py-24">
         <div className="container mx-auto px-6">
           <div className="bg-[#232B36] rounded-[3rem] p-12 md:p-20 text-white relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-12">
             <div className="absolute top-0 left-0 w-64 h-64 bg-white/5 rounded-full -ml-32 -mt-32 blur-3xl" />
+            <div className="absolute bottom-0 right-0 w-48 h-48 bg-indigo-500/10 rounded-full -mr-24 -mb-24 blur-3xl" />
             <div className="relative z-10 max-w-lg">
               <h2 className="text-4xl md:text-5xl font-black mb-6 leading-tight">Ready to prove your coding prowess?</h2>
-              <p className="text-gray-400 font-medium text-lg leading-relaxed">Join thousands of developers competing every day. The arena is waiting for its next champion.</p>
+              <p className="text-gray-400 font-medium text-lg leading-relaxed">Join developers competing every day. The arena is waiting for its next champion.</p>
             </div>
             <div className="relative z-10 grid grid-cols-2 gap-6 w-full md:w-auto">
               {[
-                { label: "Solutions", val: "500K+", icon: <Check className="text-emerald-500" size={16} /> },
-                { label: "Active Battles", val: "2.4K", icon: <Swords className="text-indigo-400" size={16} /> },
-                { label: "Top Rankers", val: "100+", icon: <Crown className="text-amber-500" size={16} /> },
-                { label: "Countries", val: "50+", icon: <Star className="text-blue-400" size={16} /> }
+                {
+                  label: "Solutions",
+                  val: stats ? formatStat(stats.acceptedSubmissions) : "—",
+                  icon: <Check className="text-emerald-500" size={16} />,
+                },
+                {
+                  label: "Total Battles",
+                  val: stats ? formatStat(stats.totalBattles) : "—",
+                  icon: <Swords className="text-indigo-400" size={16} />,
+                },
+                {
+                  label: "Players",
+                  val: stats ? formatStat(stats.totalUsers) : "—",
+                  icon: <Crown className="text-amber-500" size={16} />,
+                },
+                {
+                  label: "Problems",
+                  val: stats ? formatStat(stats.totalProblems) : "—",
+                  icon: <Code className="text-blue-400" size={16} />,
+                },
               ].map((stat, i) => (
                 <div key={i} className="bg-white/5 border border-white/10 p-6 rounded-3xl backdrop-blur-md">
                   <div className="flex items-center gap-2 mb-2 text-white/50">{stat.icon} <span className="text-[10px] font-black uppercase tracking-widest">{stat.label}</span></div>

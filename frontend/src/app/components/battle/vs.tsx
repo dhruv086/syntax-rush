@@ -124,7 +124,13 @@ export default function Vs() {
 
   const onBeginBattle = () => {
     if (battle?._id) {
-      router.push(`/problem?battleId=${battle._id}`);
+      // Navigate to the specific problem page with battleId
+      const problemId = battle.problemIds?.[0] || battle.player1?.problemId;
+      if (problemId) {
+        router.push(`/problem/${problemId}?battleId=${battle._id}`);
+      } else {
+        router.push(`/problem?battleId=${battle._id}`);
+      }
     }
   };
 

@@ -6,15 +6,16 @@ import jwt from "jsonwebtoken";
 import { otp } from "../models/otp.model.js";
 import EmailService from "../utils/EmailService.js";
 import { Problem } from "../models/problem.model.js";
+import { Submission } from "../models/submission.model.js";
+import { IndividualBattle } from "../models/IndividualBattle.model.js";
 import { uploadOnCloudinary } from "../utils/cloudinary.js";
+import { OAuth2Client } from "google-auth-library";
 
 const generateAccessandRefreshTokens = async (userId) => {
   try {
     const user = await User.findById(userId);
     const accessToken = user.generateAccessToken();
-    console.log(accessToken)
     const refreshToken = user.generateRefreshToken();
-    console.log(refreshToken)
 
     user.refreshToken = refreshToken;
     await user.save({ validateBeforeSave: false })
@@ -500,8 +501,8 @@ const updateProfile = AsyncHandler(async (req, res) => {
   if (skills !== undefined) updateFields.skills = skills;
 
   // Handle Profile Picture Upload
-  console.log("Request File:", req.file);
-  console.log("Request Body:", req.body);
+
+
 
   if (req.file) {
     const avatar = await uploadOnCloudinary(req.file.path);
@@ -512,7 +513,7 @@ const updateProfile = AsyncHandler(async (req, res) => {
     updateFields.profilePicture = req.body.profilePicture;
   }
 
-  console.log("Update Fields:", updateFields);
+
 
   await User.findByIdAndUpdate(
     req.user._id,
@@ -534,6 +535,156 @@ const getLeaderboard = AsyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, { users }, "Leaderboard fetched"));
 });
 
+const getPlatformStats = AsyncHandler(async (req, res) => {
+  const [totalUsers, totalProblems, totalSubmissions, totalBattles, acceptedSubmissions] = await Promise.all([
+    User.countDocuments(),
+    Problem.countDocuments(),
+    Submission.countDocuments(),
+    IndividualBattle.countDocuments(),
+    Submission.countDocuments({ status: "accepted" }),
+  ]);
+
+  const activeBattles = await IndividualBattle.countDocuments({ status: "active" });
+  const countries = await User.distinct("country");
+
+  return res.status(200).json(
+    new ApiResponse(200, {
+      totalUsers,
+      totalProblems,
+      totalSubmissions,
+      acceptedSubmissions,
+      totalBattles,
+      activeBattles,
+      countries: countries.filter(Boolean).length,
+    }, "Platform stats fetched")
+  );
+});
+
+const googleAuth = AsyncHandler(async (req, res) => {
+  const { credential } = req.body;
+
+  if (!credential) {
+    throw new ApiError(400, "Google credential is required");
+  }
+
+  const clientId = process.env.GOOGLE_CLIENT_ID;
+  if (!clientId) {
+    throw new ApiError(500, "Google OAuth is not configured on the server");
+  }
+
+  const client = new OAuth2Client(clientId);
+  let ticket;
+  try {
+    ticket = await client.verifyIdToken({
+      idToken: credential,
+      audience: clientId,
+    });
+  } catch (err) {
+    throw new ApiError(401, "Invalid Google credential");
+  }
+
+  const payload = ticket.getPayload();
+  if (!payload || !payload.email) {
+    throw new ApiError(401, "Failed to extract user info from Google token");
+  }
+
+  const { email, name, picture, sub: googleId } = payload;
+
+  let user = await User.findOne({ email });
+  let isNewUser = false;
+
+  if (!user) {
+    isNewUser = true;
+    let baseUsername = email.split("@")[0].replace(/[^a-zA-Z0-9_]/g, "").toLowerCase();
+    let username = baseUsername;
+    let counter = 1;
+    while (await User.findOne({ username })) {
+      username = `${baseUsername}${counter}`;
+      counter++;
+    }
+
+    user = await User.create({
+      fullname: name || email.split("@")[0],
+      email,
+      username,
+      password: `google_${googleId}_${Date.now()}`,
+      isEmailVerified: true,
+      profilePicture: picture || "",
+    });
+  }
+
+  if (user.blocked) {
+    throw new ApiError(403, "Your account has been blocked. Please contact support.");
+  }
+
+  const { accessToken, refreshToken } = await generateAccessandRefreshTokens(user._id);
+
+  const options = {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+  };
+
+  return res
+    .status(200)
+    .cookie("accessToken", accessToken, options)
+    .cookie("refreshToken", refreshToken, options)
+    .json(
+      new ApiResponse(200, {
+        user: {
+          _id: user._id,
+          fullname: user.fullname,
+          email: user.email,
+          username: user.username,
+          profilePicture: user.profilePicture,
+          isEmailVerified: user.isEmailVerified,
+        },
+        isNewUser,
+        accessToken,
+        refreshToken,
+      }, isNewUser ? "Account created with Google" : "Logged in with Google")
+    );
+});
+
+// Check if a username is available
+const checkUsername = AsyncHandler(async (req, res) => {
+  const { username } = req.query;
+  if (!username) throw new ApiError(400, "Username is required");
+
+  const usernameRegex = /^[a-zA-Z0-9_]{3,20}$/;
+  if (!usernameRegex.test(username)) {
+    return res.status(200).json(
+      new ApiResponse(200, { available: false, reason: "Must be 3-20 chars: letters, numbers, underscores only" })
+    );
+  }
+
+  const existing = await User.findOne({ username: username.toLowerCase() });
+  return res.status(200).json(
+    new ApiResponse(200, { available: !existing, reason: existing ? "Username is already taken" : null })
+  );
+});
+
+// Set username for a new user (after Google signup)
+const setUsername = AsyncHandler(async (req, res) => {
+  const { username } = req.body;
+  if (!username) throw new ApiError(400, "Username is required");
+
+  const usernameRegex = /^[a-zA-Z0-9_]{3,20}$/;
+  if (!usernameRegex.test(username)) {
+    throw new ApiError(400, "Must be 3-20 chars: letters, numbers, underscores only");
+  }
+
+  const lowerUsername = username.toLowerCase();
+  const existing = await User.findOne({ username: lowerUsername, _id: { $ne: req.user._id } });
+  if (existing) throw new ApiError(409, "Username is already taken");
+
+  await User.findByIdAndUpdate(req.user._id, { username: lowerUsername });
+
+  return res.status(200).json(
+    new ApiResponse(200, { username: lowerUsername }, "Username set successfully")
+  );
+});
+
 export {
   refreshAccessToken,
   login,
@@ -547,5 +698,9 @@ export {
   forgotPasswordOTP,
   resetPassword,
   updateProfile,
-  getLeaderboard
+  getLeaderboard,
+  getPlatformStats,
+  googleAuth,
+  checkUsername,
+  setUsername
 };

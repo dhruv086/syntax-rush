@@ -6,6 +6,24 @@ import { Problem } from "../models/problem.model.js";
 import { Submission } from "../models/submission.model.js";
 import { createSubmission as judgeCreate, waitForResult } from "../utils/judge0.js";
 
+// Map common language strings to Judge0 language IDs
+const JUDGE0_LANG_IDS = {
+  javascript: 63,
+  typescript: 74,
+  python: 71,
+  java: 62,
+  c: 50,
+  cpp: 54,
+  go: 60,
+};
+
+function resolveLanguageId(language) {
+  if (typeof language === "number") return language;
+  if (!language) return undefined;
+  const key = String(language).toLowerCase();
+  return JUDGE0_LANG_IDS[key];
+}
+
 const create1v1 = AsyncHandler(async (req, res) => {
   try {
     const { opponentId, problemIds, durationMinutes = 20, battleType = "1v1_classic" } = req.body;
@@ -57,6 +75,9 @@ const submitToBattle = AsyncHandler(async (req, res) => {
   const { code, language } = req.body;
   if (!code || !language) throw new ApiError(400, "code and language are required");
 
+  const language_id = resolveLanguageId(language);
+  if (!language_id) throw new ApiError(400, "unsupported language");
+
   const battle = await IndividualBattle.findById(id);
   if (!battle) throw new ApiError(404, "battle not found");
   if (!isParticipant(battle, req.user._id)) throw new ApiError(403, "forbidden");
@@ -72,7 +93,7 @@ const submitToBattle = AsyncHandler(async (req, res) => {
   const testCases = problem.testCases || [];
   if (!testCases.length) throw new ApiError(400, "problem has no test cases");
 
-  const language_id = typeof language === "number" ? language : undefined;
+  // language_id already resolved above
 
   // Parallelize Judge0 submissions
   const tokens = await Promise.all(testCases.map(async t => {
