@@ -1,8 +1,12 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import api from "@/lib/api";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import dynamic from "next/dynamic";
+import ChooseUsernameModal from "../components/auth/ChooseUsernameModal";
+
+const GoogleLogin = dynamic(() => import("@react-oauth/google").then((mod) => mod.GoogleLogin), { ssr: false });
 
 export default function SignupPage() {
   const [formData, setFormData] = useState({
@@ -13,6 +17,7 @@ export default function SignupPage() {
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showUsernameModal, setShowUsernameModal] = useState(false);
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -20,13 +25,33 @@ export default function SignupPage() {
     setLoading(true);
     setError("");
     try {
-      // Step 1: Send OTP
       await api.post("/auth/send-otp", { email: formData.email });
-      // Redirect to OTP verification with user details in state or session
       localStorage.setItem("signupData", JSON.stringify(formData));
       router.push("/verify-otp");
     } catch (err: any) {
       setError(err.response?.data?.message || "Something went wrong");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSuccess = async (credentialResponse: any) => {
+    setError("");
+    setLoading(true);
+    try {
+      const response = await api.post("/auth/google", {
+        credential: credentialResponse.credential,
+      });
+      if (response.status === 200) {
+        const { isNewUser } = response.data.data;
+        if (isNewUser) {
+          setShowUsernameModal(true);
+        } else {
+          router.push("/");
+        }
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.message || "Google sign-up failed");
     } finally {
       setLoading(false);
     }
@@ -48,6 +73,34 @@ export default function SignupPage() {
           <div className="bg-red-50 text-red-600 p-3 rounded-lg mb-6 text-sm border border-red-100">
             {error}
           </div>
+        )}
+
+        {/* Google Sign-Up Button — rendered only after client-side load */}
+        {GoogleLogin && (
+          <>
+            <div className="mb-6">
+              <div className="flex justify-center">
+                <GoogleLogin
+                  onSuccess={handleGoogleSuccess}
+                  onError={() => setError("Google sign-up failed")}
+                  text="signup_with"
+                  shape="pill"
+                  size="large"
+                  width="360"
+                  theme="outline"
+                />
+              </div>
+            </div>
+
+            <div className="relative mb-6">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-200"></div>
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="bg-white px-4 text-gray-400 font-medium">or sign up with email</span>
+              </div>
+            </div>
+          </>
         )}
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -121,6 +174,13 @@ export default function SignupPage() {
           </p>
         </div>
       </div>
+
+      {showUsernameModal && (
+        <ChooseUsernameModal
+          onSuccess={() => router.push("/")}
+          onSkip={() => router.push("/")}
+        />
+      )}
     </div>
   );
 }

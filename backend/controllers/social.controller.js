@@ -110,4 +110,64 @@ const getFriendsList = AsyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, { friends }, "Friends list fetched"));
 });
 
-export { searchUsers, sendFriendRequest, getFriendRequests, acceptFriendRequest, getFriendsList };
+const rejectFriendRequest = AsyncHandler(async (req, res) => {
+  const { friendId } = req.body;
+  if (!friendId) throw new ApiError(400, "Friend ID is required");
+
+  const currentUser = await User.findById(req.user._id);
+  const friend = await User.findById(friendId);
+
+  if (!friend) throw new ApiError(404, "User not found");
+
+  // Find the pending request (must NOT be the initiator to reject)
+  const fIndex = currentUser.userFriendship.findIndex(
+    f => String(f.userId) === String(friendId) && f.status === "pending" && !f.isInitiator
+  );
+  if (fIndex === -1) throw new ApiError(404, "No pending friend request from this user");
+
+  // Remove from both users
+  currentUser.userFriendship.splice(fIndex, 1);
+  await currentUser.save();
+
+  const tIndex = friend.userFriendship.findIndex(
+    f => String(f.userId) === String(req.user._id)
+  );
+  if (tIndex !== -1) {
+    friend.userFriendship.splice(tIndex, 1);
+    await friend.save();
+  }
+
+  return res.status(200).json(new ApiResponse(200, {}, "Friend request rejected"));
+});
+
+const removeFriend = AsyncHandler(async (req, res) => {
+  const { friendId } = req.body;
+  if (!friendId) throw new ApiError(400, "Friend ID is required");
+
+  const currentUser = await User.findById(req.user._id);
+  const friend = await User.findById(friendId);
+
+  if (!friend) throw new ApiError(404, "User not found");
+
+  // Must be an accepted friendship
+  const fIndex = currentUser.userFriendship.findIndex(
+    f => String(f.userId) === String(friendId) && f.status === "accepted"
+  );
+  if (fIndex === -1) throw new ApiError(404, "You are not friends with this user");
+
+  // Remove from both
+  currentUser.userFriendship.splice(fIndex, 1);
+  await currentUser.save();
+
+  const tIndex = friend.userFriendship.findIndex(
+    f => String(f.userId) === String(req.user._id)
+  );
+  if (tIndex !== -1) {
+    friend.userFriendship.splice(tIndex, 1);
+    await friend.save();
+  }
+
+  return res.status(200).json(new ApiResponse(200, {}, "Friend removed"));
+});
+
+export { searchUsers, sendFriendRequest, getFriendRequests, acceptFriendRequest, getFriendsList, rejectFriendRequest, removeFriend };

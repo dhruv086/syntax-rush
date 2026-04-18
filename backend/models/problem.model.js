@@ -59,7 +59,7 @@ const codingProblemSchema = new mongoose.Schema({
     },
     category: {
       type: String,
-      enum: ["linked_list", "array", "math", "string", "graph", "dynamic_programming", "greedy", "other"],
+      enum: ["linked_list", "array", "math", "string", "graph", "dynamic_programming", "greedy", "tree", "binary_search", "bit_manipulation", "recursion", "stack", "queue", "heap", "two_pointers", "sliding_window", "backtracking", "trie", "sorting", "hashing", "other"],
       default: "other"
     }
   }],

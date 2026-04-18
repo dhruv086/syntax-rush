@@ -1,15 +1,28 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import api from "@/lib/api";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import ChooseUsernameModal from "../components/auth/ChooseUsernameModal";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showUsernameModal, setShowUsernameModal] = useState(false);
+  const [GoogleLogin, setGoogleLogin] = useState<any>(null);
   const router = useRouter();
+
+  // Dynamically load Google Login on client side only to avoid hydration mismatch
+  useEffect(() => {
+    const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+    if (clientId) {
+      import("@react-oauth/google").then((mod) => {
+        setGoogleLogin(() => mod.GoogleLogin);
+      });
+    }
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -27,6 +40,28 @@ export default function LoginPage() {
     }
   };
 
+  const handleGoogleSuccess = async (credentialResponse: any) => {
+    setError("");
+    setLoading(true);
+    try {
+      const response = await api.post("/auth/google", {
+        credential: credentialResponse.credential,
+      });
+      if (response.status === 200) {
+        const { isNewUser } = response.data.data;
+        if (isNewUser) {
+          setShowUsernameModal(true);
+        } else {
+          router.push("/");
+        }
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.message || "Google sign-in failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4">
       <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8">
@@ -39,6 +74,34 @@ export default function LoginPage() {
           <div className="bg-red-50 text-red-600 p-3 rounded-lg mb-6 text-sm border border-red-100">
             {error}
           </div>
+        )}
+
+        {/* Google Sign-In Button — rendered only after client-side load */}
+        {GoogleLogin && (
+          <>
+            <div className="mb-6">
+              <div className="flex justify-center">
+                <GoogleLogin
+                  onSuccess={handleGoogleSuccess}
+                  onError={() => setError("Google sign-in failed")}
+                  text="signin_with"
+                  shape="pill"
+                  size="large"
+                  width="360"
+                  theme="outline"
+                />
+              </div>
+            </div>
+
+            <div className="relative mb-6">
+              <div className="absolute inset-0 flex items-center">
+                <div className="w-full border-t border-gray-200"></div>
+              </div>
+              <div className="relative flex justify-center text-sm">
+                <span className="bg-white px-4 text-gray-400 font-medium">or sign in with email</span>
+              </div>
+            </div>
+          </>
         )}
 
         <form onSubmit={handleLogin} className="space-y-6">
@@ -77,7 +140,7 @@ export default function LoginPage() {
 
         <div className="mt-8 text-center space-y-2">
           <p className="text-sm text-gray-600">
-            Don't have an account?{" "}
+            Don&apos;t have an account?{" "}
             <Link href="/signup" className="text-[#6266F0] font-semibold hover:underline">
               Sign up
             </Link>
@@ -89,6 +152,13 @@ export default function LoginPage() {
           </p>
         </div>
       </div>
+
+      {showUsernameModal && (
+        <ChooseUsernameModal
+          onSuccess={() => router.push("/")}
+          onSkip={() => router.push("/")}
+        />
+      )}
     </div>
   );
 }

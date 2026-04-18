@@ -178,10 +178,8 @@ const userSchema = new mongoose.Schema(
   }
 );
 
-// userSchema.index({ college: 1, country: 1 });//accending 
-// userSchema.index({ "performanceStats.totalPoints": -1 }); //decending
-// userSchema.index({ "performanceStats.currentLeague": 1 });//accending
-// userSchema.index({ isActive: 1 });//only for active users
+// Compound index for leaderboard filtering (field-level indexes are already defined inline)
+userSchema.index({ college: 1, country: 1 });
 
 
 userSchema.pre("save", async function (next) {

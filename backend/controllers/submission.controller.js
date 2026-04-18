@@ -181,6 +181,74 @@ const listUserSubmissions = AsyncHandler(async (req, res) => {
   return res.status(200).json(new ApiResponse(200, { submissions, total }));
 });
 
-export { submitSolution, getSubmissionById, listUserSubmissions };
+// Run against sample test cases only (first 2) — no submission saved
+const runCode = AsyncHandler(async (req, res) => {
+  const { problemId, code, language } = req.body;
 
+  if (!problemId) throw new ApiError(400, "problemId is required");
+  if (!code) throw new ApiError(400, "code is required");
+  if (!language) throw new ApiError(400, "language is required");
 
+  const language_id = resolveLanguageId(language);
+  if (!language_id) throw new ApiError(400, "unsupported language");
+
+  const problem = await Problem.findById(problemId);
+  if (!problem) throw new ApiError(404, "problem not found");
+
+  const allTestCases = problem.testCases || [];
+  if (!allTestCases.length) throw new ApiError(400, "problem has no test cases");
+
+  // Only run against sample test cases (first 2)
+  const sampleCases = allTestCases.slice(0, 2);
+
+  const tokens = await Promise.all(
+    sampleCases.map(async (t) => {
+      const payload = {
+        source_code: code,
+        language_id,
+        stdin: t.input ?? "",
+        expected_output: (t.output ?? "").toString(),
+        cpu_time_limit: Math.ceil((problem.timeLimitMs ?? 2000) / 1000),
+        memory_limit: Math.ceil((problem.memoryLimitKb ?? 256000) / 1024),
+      };
+      const { token } = await judgeCreate(payload);
+      return token;
+    })
+  );
+
+  const results = await Promise.all(
+    tokens.map((token) => waitForResult(token, { timeoutMs: 15000 }))
+  );
+
+  // Build detailed per-case results
+  const caseResults = sampleCases.map((tc, i) => {
+    const r = results[i];
+    const statusId = r?.status?.id;
+    const passed = statusId === 3;
+    return {
+      caseNumber: i + 1,
+      input: tc.input,
+      expectedOutput: tc.output,
+      actualOutput: r?.stdout?.trim() || "",
+      stderr: r?.stderr || "",
+      compileOutput: r?.compile_output || "",
+      passed,
+      status: passed ? "passed" : mapJudgeStatus(statusId),
+      executionTime: r?.time ? `${(parseFloat(r.time) * 1000).toFixed(0)}ms` : "N/A",
+      memory: r?.memory ? `${r.memory} KB` : "N/A",
+    };
+  });
+
+  const totalPassed = caseResults.filter((c) => c.passed).length;
+
+  return res.status(200).json(
+    new ApiResponse(200, {
+      caseResults,
+      totalPassed,
+      totalCases: sampleCases.length,
+      allPassed: totalPassed === sampleCases.length,
+    }, "code executed against sample test cases")
+  );
+});
+
+export { submitSolution, getSubmissionById, listUserSubmissions, runCode };

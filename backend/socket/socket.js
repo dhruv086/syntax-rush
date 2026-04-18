@@ -1,5 +1,7 @@
 import { Server } from "socket.io";
+import jwt from "jsonwebtoken";
 import matchmaker from "../utils/matchmaker.js";
+import { User } from "../models/user.model.js";
 
 const socketManager = (server) => {
   const io = new Server(server, {
@@ -10,6 +12,44 @@ const socketManager = (server) => {
   });
 
   const rooms = new Map();
+
+  // Socket.IO JWT authentication middleware
+  io.use(async (socket, next) => {
+    try {
+      const token =
+        socket.handshake.auth?.token ||
+        socket.handshake.headers?.cookie
+          ?.split("; ")
+          .find((c) => c.startsWith("accessToken="))
+          ?.split("=")[1];
+
+      if (!token) {
+        // Allow unauthenticated connections for public features (global chat)
+        // but mark them as unauthenticated
+        socket.user = null;
+        return next();
+      }
+
+      const decoded = jwt.verify(
+        token,
+        process.env.ACCESS_TOKEN_SECRET || process.env.SECRET_KEY
+      );
+      const user = await User.findById(decoded._id).select(
+        "-password -refreshToken"
+      );
+
+      if (!user) {
+        return next(new Error("Invalid token — user not found"));
+      }
+
+      socket.user = user;
+      next();
+    } catch (err) {
+      // Allow connection but mark as unauthenticated
+      socket.user = null;
+      next();
+    }
+  });
 
   // Periodic task to expand matchmaking tolerances and find matches
   setInterval(() => {
@@ -31,18 +71,58 @@ const socketManager = (server) => {
     }
   }, 5000); // Check every 5 seconds
 
+  /**
+   * Select a problem appropriate for the average ELO of both players.
+   *   Bronze/Silver (< 600)   → Easy
+   *   Gold/Platinum (600-1500) → Medium (fallback Easy)
+   *   Diamond/Master (>= 1500) → Hard (fallback Medium)
+   */
+  async function selectProblemByElo(ratingA, ratingB) {
+    const { Problem } = await import("../models/problem.model.js");
+    const avgRating = (ratingA + ratingB) / 2;
+
+    let targetDifficulty;
+    if (avgRating >= 1500) targetDifficulty = "Hard";
+    else if (avgRating >= 600) targetDifficulty = "Medium";
+    else targetDifficulty = "Easy";
+
+    // Try target difficulty first, then fallback
+    let problems = await Problem.find({ difficulty: targetDifficulty });
+    if (!problems.length && targetDifficulty === "Hard") {
+      problems = await Problem.find({ difficulty: "Medium" });
+    }
+    if (!problems.length && targetDifficulty === "Medium") {
+      problems = await Problem.find({ difficulty: "Easy" });
+    }
+    if (!problems.length) {
+      problems = await Problem.find({});
+    }
+
+    if (!problems.length) return null;
+    return problems[Math.floor(Math.random() * problems.length)];
+  }
+
   async function createMatch(playerA, playerB) {
     try {
-      const { IndividualBattle } = await import("../models/IndividualBattle.model.js");
-      const { Problem } = await import("../models/problem.model.js");
+      const { IndividualBattle } = await import(
+        "../models/IndividualBattle.model.js"
+      );
 
-      const problems = await Problem.find({});
-      if (!problems.length) {
-        io.to(playerA.socketId).emit("match_error", "No problems available for battle");
-        io.to(playerB.socketId).emit("match_error", "No problems available for battle");
+      const ratingA = playerA.user.performanceStats?.battlePoints || 1200;
+      const ratingB = playerB.user.performanceStats?.battlePoints || 1200;
+
+      const randomProblem = await selectProblemByElo(ratingA, ratingB);
+      if (!randomProblem) {
+        io.to(playerA.socketId).emit(
+          "match_error",
+          "No problems available for battle"
+        );
+        io.to(playerB.socketId).emit(
+          "match_error",
+          "No problems available for battle"
+        );
         return;
       }
-      const randomProblem = problems[Math.floor(Math.random() * problems.length)];
 
       const now = new Date();
       const durationMinutes = 20;
@@ -59,10 +139,18 @@ const socketManager = (server) => {
       });
 
       // Notify both players
-      io.to(playerA.socketId).emit("match_found", { battle, opponent: playerB.user });
-      io.to(playerB.socketId).emit("match_found", { battle, opponent: playerA.user });
+      io.to(playerA.socketId).emit("match_found", {
+        battle,
+        opponent: playerB.user,
+      });
+      io.to(playerB.socketId).emit("match_found", {
+        battle,
+        opponent: playerA.user,
+      });
 
-      console.log(`Match created: ${playerA.user.username} vs ${playerB.user.username}`);
+      console.log(
+        `Match created: ${playerA.user.username} vs ${playerB.user.username} [${randomProblem.difficulty}]`
+      );
     } catch (err) {
       console.error("Battle creation error:", err);
       io.to(playerA.socketId).emit("match_error", "Failed to create battle");
@@ -71,16 +159,27 @@ const socketManager = (server) => {
   }
 
   io.on("connection", (socket) => {
-    console.log("A user connected:", socket.id);
+    console.log(
+      `User connected: ${socket.id} (${socket.user?.username || "anonymous"})`
+    );
 
     socket.on("start_matchmaking", async ({ user, matchType }) => {
-      console.log(`${user.username} started matchmaking for ${matchType}`);
+      // Use authenticated user from socket middleware when available
+      const authenticatedUser = socket.user || user;
+      if (!authenticatedUser?._id) {
+        socket.emit("match_error", "Authentication required for matchmaking");
+        return;
+      }
+
+      console.log(
+        `${authenticatedUser.username} started matchmaking for ${matchType}`
+      );
 
       // Add player to matchmaker queue
-      matchmaker.addPlayer(socket.id, user, matchType);
+      matchmaker.addPlayer(socket.id, authenticatedUser, matchType);
 
       // Immediate match check
-      const match = matchmaker.findMatch(user._id);
+      const match = matchmaker.findMatch(authenticatedUser._id);
       if (match) {
         const [p1, p2] = match;
         createMatch(p1, p2);
@@ -88,8 +187,9 @@ const socketManager = (server) => {
     });
 
     socket.on("cancel_matchmaking", ({ userId }) => {
-      matchmaker.removePlayer(userId);
-      console.log(`User ${userId} cancelled matchmaking`);
+      const authenticatedUserId = socket.user?._id || userId;
+      matchmaker.removePlayer(authenticatedUserId);
+      console.log(`User ${authenticatedUserId} cancelled matchmaking`);
     });
 
     socket.on("join_battle", ({ battleId, user }) => {
@@ -98,8 +198,18 @@ const socketManager = (server) => {
         rooms.set(battleId, { players: [], status: "active" });
       }
       const room = rooms.get(battleId);
-      if (!room.players.find(p => String(p.userId) === String(user._id))) {
-        room.players.push({ ...user, userId: user._id, socketId: socket.id, progress: 0 });
+      const authenticatedUser = socket.user || user;
+      if (
+        !room.players.find(
+          (p) => String(p.userId) === String(authenticatedUser._id)
+        )
+      ) {
+        room.players.push({
+          ...authenticatedUser,
+          userId: authenticatedUser._id,
+          socketId: socket.id,
+          progress: 0,
+        });
       }
       io.to(battleId).emit("room_state", room);
     });
@@ -107,7 +217,9 @@ const socketManager = (server) => {
     socket.on("update_progress", ({ battleId, userId, progress }) => {
       const room = rooms.get(battleId);
       if (room) {
-        const player = room.players.find(p => String(p.userId) === String(userId));
+        const player = room.players.find(
+          (p) => String(p.userId) === String(userId)
+        );
         if (player) {
           player.progress = progress;
           socket.to(battleId).emit("opponent_progress", { userId, progress });
@@ -116,12 +228,14 @@ const socketManager = (server) => {
     });
 
     socket.on("battle_submission", ({ battleId, userId, submission }) => {
-      socket.to(battleId).emit("opponent_submitted", { userId, submission });
+      socket
+        .to(battleId)
+        .emit("opponent_submitted", { userId, submission });
     });
 
     socket.on("disconnect", () => {
       // Find user by socketId to remove from queue
-      const entry = matchmaker.queue.find(p => p.socketId === socket.id);
+      const entry = matchmaker.queue.find((p) => p.socketId === socket.id);
       if (entry) {
         matchmaker.removePlayer(entry.user._id);
       }
