@@ -114,3 +114,7 @@ __pycache__/
 .pytest_cache/
 .ipynb_checkpoints/
 *.ipynb_checkpoints
+
+backend_documentation.md
+battle_controller_docs.md
+redis_architecture_walkthrough.md

@@ -51,25 +51,52 @@ const socketManager = (server) => {
     }
   });
 
+  // Track if any users on THIS server are waiting
+  const localWaitingUsers = new Set();
+
   // Periodic task to expand matchmaking tolerances and find matches
-  setInterval(() => {
-    matchmaker.expandTolerances();
+  let isMatchingRunning = false;
+  
+  const runMatchmakingLoop = async () => {
+    if (isMatchingRunning) return;
+    isMatchingRunning = true;
 
-    // Attempt to match players who are waiting
-    const processedUsers = new Set();
-
-    for (const entry of matchmaker.queue) {
-      if (processedUsers.has(String(entry.user._id))) continue;
-
-      const match = matchmaker.findMatch(entry.user._id);
-      if (match) {
-        const [p1, p2] = match;
-        processedUsers.add(String(p1.user._id));
-        processedUsers.add(String(p2.user._id));
-        createMatch(p1, p2);
-      }
+    if (localWaitingUsers.size === 0) {
+      isMatchingRunning = false;
+      setTimeout(runMatchmakingLoop, 5000);
+      return;
     }
-  }, 5000); // Check every 5 seconds
+
+    try {
+      const queue = await matchmaker.getQueue();
+      await matchmaker.expandTolerances(queue);
+      const processedUsers = new Set();
+
+      for (const entry of queue) {
+        if (processedUsers.has(String(entry.user._id))) continue;
+
+        const match = await matchmaker.findMatch(queue, entry.user._id);
+        if (match) {
+          const [p1, p2] = match;
+          processedUsers.add(String(p1.user._id));
+          processedUsers.add(String(p2.user._id));
+          
+          localWaitingUsers.delete(p1.socketId);
+          localWaitingUsers.delete(p2.socketId);
+
+          await createMatch(p1, p2);
+        }
+      }
+    } catch (error) {
+      console.error("Error in matchmaking loop:", error);
+    } finally {
+      isMatchingRunning = false;
+      setTimeout(runMatchmakingLoop, 5000);
+    }
+  };
+
+  // Start the loop
+  runMatchmakingLoop();
 
   /**
    * Select a problem appropriate for the average ELO of both players.
@@ -176,19 +203,24 @@ const socketManager = (server) => {
       );
 
       // Add player to matchmaker queue
-      matchmaker.addPlayer(socket.id, authenticatedUser, matchType);
+      await matchmaker.addPlayer(socket.id, authenticatedUser, matchType);
+      localWaitingUsers.add(socket.id);
 
       // Immediate match check
-      const match = matchmaker.findMatch(authenticatedUser._id);
+      const queue = await matchmaker.getQueue();
+      const match = await matchmaker.findMatch(queue, authenticatedUser._id);
       if (match) {
         const [p1, p2] = match;
-        createMatch(p1, p2);
+        localWaitingUsers.delete(p1.socketId);
+        localWaitingUsers.delete(p2.socketId);
+        await createMatch(p1, p2);
       }
     });
 
-    socket.on("cancel_matchmaking", ({ userId }) => {
+    socket.on("cancel_matchmaking", async ({ userId }) => {
       const authenticatedUserId = socket.user?._id || userId;
-      matchmaker.removePlayer(authenticatedUserId);
+      await matchmaker.removePlayer(authenticatedUserId);
+      localWaitingUsers.delete(socket.id);
       console.log(`User ${authenticatedUserId} cancelled matchmaking`);
     });
 
@@ -233,11 +265,17 @@ const socketManager = (server) => {
         .emit("opponent_submitted", { userId, submission });
     });
 
-    socket.on("disconnect", () => {
+    socket.on("disconnect", async () => {
+      localWaitingUsers.delete(socket.id);
       // Find user by socketId to remove from queue
-      const entry = matchmaker.queue.find((p) => p.socketId === socket.id);
-      if (entry) {
-        matchmaker.removePlayer(entry.user._id);
+      try {
+        const queue = await matchmaker.getQueue();
+        const entry = queue.find((p) => p.socketId === socket.id);
+        if (entry) {
+          await matchmaker.removePlayer(entry.user._id);
+        }
+      } catch (err) {
+        console.error("Error removing disconnected user from queue", err);
       }
       console.log("User disconnected:", socket.id);
     });

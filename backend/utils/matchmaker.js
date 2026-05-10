@@ -1,58 +1,63 @@
 /**
  * Matchmaker Utility
  * Ports the logic from ML/src/services/base_matcher.py to Node.js
+ * Backed by Redis for distributed scaling
  */
 
+import redisClient from "./redisClient.js";
+
 const K = 32; // Elo sensitivity factor
+const QUEUE_KEY = "matchmaker:queue";
 
 class Matchmaker {
-  constructor() {
-    this.queue = []; // Array of { socketId, user, matchType, joinedAt, currentTolerance }
-  }
-
   /**
    * Adds a player to the queue
-   * @param {string} socketId 
-   * @param {Object} user 
-   * @param {string} matchType 
    */
-  addPlayer(socketId, user, matchType) {
+  async addPlayer(socketId, user, matchType) {
     // Remove if already exists
-    this.removePlayer(user._id);
+    await this.removePlayer(user._id);
 
-    this.queue.push({
+    const playerData = {
       socketId,
       user,
       matchType,
       joinedAt: Date.now(),
       currentTolerance: 100, // Initial rating difference allowed
       rating: user.performanceStats?.battlePoints || 1200 // Default rating if none
-    });
+    };
+
+    await redisClient.hSet(QUEUE_KEY, String(user._id), JSON.stringify(playerData));
     console.log(`Added ${user.username} to matchmaking queue. Type: ${matchType}`);
   }
 
   /**
    * Removes a player from the queue
-   * @param {string} userId 
    */
-  removePlayer(userId) {
-    const initialLen = this.queue.length;
-    this.queue = this.queue.filter(p => String(p.user._id) !== String(userId));
-    if (this.queue.length < initialLen) {
+  async removePlayer(userId) {
+    const deleted = await redisClient.hDel(QUEUE_KEY, String(userId));
+    if (deleted > 0) {
       console.log(`Removed user ${userId} from queue.`);
     }
   }
 
   /**
-   * Finds a match for a specific player or tries to pair all available players
-   * @returns {Array|null} [playerA, playerB] or null
+   * Retrieves all players currently in the queue
    */
-  findMatch(basePlayerId) {
-    const basePlayer = this.queue.find(p => String(p.user._id) === String(basePlayerId));
+  async getQueue() {
+    const queueData = await redisClient.hGetAll(QUEUE_KEY);
+    return Object.values(queueData).map((data) => JSON.parse(data));
+  }
+
+  /**
+   * Finds a match for a specific player or tries to pair all available players
+   */
+  async findMatch(queue, basePlayerId) {
+    const basePlayer = queue.find((p) => String(p.user._id) === String(basePlayerId));
+    
     if (!basePlayer) return null;
 
     // Filter potential opponents
-    const candidates = this.queue.filter(p =>
+    const candidates = queue.filter(p =>
       p.socketId !== basePlayer.socketId &&
       p.matchType === basePlayer.matchType &&
       Math.abs(p.rating - basePlayer.rating) <= basePlayer.currentTolerance
@@ -65,8 +70,14 @@ class Matchmaker {
       const opponent = candidates[0];
 
       // Remove both from queue
-      this.removePlayer(basePlayer.user._id);
-      this.removePlayer(opponent.user._id);
+      await this.removePlayer(basePlayer.user._id);
+      await this.removePlayer(opponent.user._id);
+
+      // Remove from the local array copy so they don't get matched again in this loop
+      const bIndex = queue.findIndex(p => String(p.user._id) === String(basePlayer.user._id));
+      if (bIndex > -1) queue.splice(bIndex, 1);
+      const oIndex = queue.findIndex(p => String(p.user._id) === String(opponent.user._id));
+      if (oIndex > -1) queue.splice(oIndex, 1);
 
       return [basePlayer, opponent];
     }
@@ -77,19 +88,17 @@ class Matchmaker {
   /**
    * Periodically called to expand tolerance for waiting players
    */
-  expandTolerances(step = 50, maxExpand = 600) {
-    this.queue.forEach(p => {
+  async expandTolerances(queue, step = 50, maxExpand = 600) {
+    for (const p of queue) {
       if (p.currentTolerance < maxExpand) {
         p.currentTolerance += step;
+        await redisClient.hSet(QUEUE_KEY, String(p.user._id), JSON.stringify(p));
       }
-    });
+    }
   }
 
   /**
    * Calculates Elo rating update
-   * @param {number} ra Rating of player A
-   * @param {number} rb Rating of player B
-   * @param {number} result Result for player A (1 for win, 0 for loss, 0.5 for draw)
    */
   static calculateEloUpdate(ra, rb, result) {
     const pa = 1 / (1 + Math.pow(10, (rb - ra) / 400));
@@ -98,7 +107,7 @@ class Matchmaker {
   }
 
   /**
-   * Map XP to League based on ML/src/services/leagues/league_config.py
+   * Map XP to League
    */
   static getLeague(xp) {
     if (xp >= 2100) return "Master";
