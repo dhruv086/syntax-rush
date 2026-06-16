@@ -15,7 +15,7 @@ services:
       - key: MONGODB_URI
         sync: false
       - key: REDIS_URL
-        sync: false # Set this to your production Redis connection string
+        sync: false 
       - key: ACCESS_TOKEN_SECRET
         generateValue: true
       - key: REFRESH_TOKEN_SECRET
@@ -23,7 +23,7 @@ services:
       - key: JWT_SECRET
         generateValue: true
       - key: CORS_ORIGIN
-        sync: false # Set this to your frontend URL after deployment
+        sync: false 
       - key: EMAIL_USER
         sync: false
       - key: EMAIL_PASSWORD
